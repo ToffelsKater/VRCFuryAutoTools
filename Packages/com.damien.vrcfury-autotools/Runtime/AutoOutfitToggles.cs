@@ -12,6 +12,8 @@ namespace VRCFuryAutoTools {
         public string menuRoot = "Outfits";
         [Tooltip("Menu name for this outfit. Empty = this GameObject's name.")]
         public string outfitName = "";
+        [Tooltip("Outfit is switched on by default when the avatar loads")]
+        public bool defaultOn = false;
         [Tooltip("Remember toggle state between avatar loads")]
         public bool saved = true;
         [Tooltip("Also create toggles for meshes on disabled GameObjects")]

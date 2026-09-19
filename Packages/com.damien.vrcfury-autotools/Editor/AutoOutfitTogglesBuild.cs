@@ -42,6 +42,7 @@ namespace VRCFuryAutoTools {
                 foreach (var (renderer, path) in AutoOutfitTogglesPlan.Plan(c)) {
                     var toggle = FuryComponents.CreateToggle(renderer.gameObject);
                     toggle.SetMenuPath(path);
+                    if (c.defaultOn) toggle.SetDefaultOn();
                     if (c.saved) toggle.SetSaved();
                     toggle.GetActions().AddTurnOn(renderer.gameObject);
                 }
