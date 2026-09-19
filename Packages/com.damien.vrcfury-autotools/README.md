@@ -1,31 +1,36 @@
 # VRCFury Auto Tools
 
-Addon for [VRCFury](https://vrcfury.com): an automatic outfit toggle creator and a zero-weight bone remover.
-Uses only VRCFury's public API (`com.vrcfury.api`); nothing in VRCFury is modified or redistributed.
+Two small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
+Add a component, upload your avatar, and it's done.
 
-Built from [vrchat-community/template-package](https://github.com/vrchat-community/template-package).
-Requires Unity 2022.3, VRChat Avatars SDK >= 3.7 and VRCFury.
-
-## Components (Add Component > VRCFury Auto Tools)
+## What's inside
 
 ### Automatic Outfit Toggle Creator
-Add to an outfit prefab root. At build, every mesh (Skinned/MeshRenderer) under it gets a VRCFury Toggle at
-`Outfits/<OutfitName>/<MeshObjectName>`, e.g. `Outfits/OutfitXY/Top`, `Outfits/OutfitXY/Jeans`.
-The inspector previews the paths. Runs before VRCFury (callback order -20000).
+Setting up a menu toggle for every piece of clothing gets old fast. Put this on an outfit and it makes a toggle
+for each piece automatically, neatly sorted in your menu like:
+
+```
+Outfits
+└── OutfitXY
+    ├── Top
+    └── Jeans
+```
 
 ### Automatic Zero Weight Bone Remover
-Add to an avatar root or outfit root. At build (order -9000, after VRCFury) bones under it that no mesh in the
-avatar weights to are deleted and removed from each mesh's bone list, bindposes and weights (cloned mesh, original assets untouched).
-Never removed: humanoid bones, anything referenced by a component, animated paths, whole PhysBone/DynamicBone chains,
-objects with extra components, names listed in `keepNames`. Use "Preview bones to remove" first.
+Some bones in an avatar or outfit don't actually move anything. They just add to your bone count and hurt your
+performance rating. Put this on your avatar or an outfit and those unused bones are removed when you upload.
+Bones that are still needed (like physbones, constraints or animated parts) are left alone, and your original
+files are never changed. You can preview what would be removed before you upload.
 
-## Repo layout / publishing
-* `Packages/com.damien.vrcfury-autotools` - the package.
-* `Website/` - landing page, a [Scriban](https://github.com/scriban/scriban) template (`index.html`) filled with listing data by the `Build Repo Listing` action. `app.js` and `styles.css` are static.
-* Setup: repo variable `PACKAGE_NAME` = `com.damien.vrcfury-autotools`; Settings > Pages > Source = GitHub Actions.
-* Release: run the `Build Release` action (version comes from the package's `package.json`).
-* First open the repo in Unity once and commit the generated `.meta` files under `Packages/com.damien.vrcfury-autotools`.
+## Install
 
-## License note
-VRCFury's license forbids commercial redistribution of patches/plugins that modify it. This package only calls the public API,
-but read VRCFury's `LICENSE.md` before selling or distributing.
+1. Open the [landing page](https://toffelskater.github.io/VRCFuryAutoTools/) and click **Add to VCC**
+   (or add `https://toffelskater.github.io/VRCFuryAutoTools/index.json` under VCC Settings → Packages → Add Repository).
+2. Add **VRCFury Auto Tools** to your avatar project. VRCFury needs to be installed too.
+3. In Unity, choose **Add Component → VRCFury Auto Tools** and pick the tool you want.
+
+## Good to know
+
+* Works with the VRChat Avatars SDK 3.7 or newer and Unity 2022.3.
+* This is an unofficial add-on and isn't made by VRChat or VRCFury.
+* It only uses the parts of VRCFury that are open for add-ons. If you plan to sell or share it, take a look at VRCFury's license first.
