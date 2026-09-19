@@ -1,7 +1,7 @@
 {
   "name": "com.damien.vrcfury-autotools",
   "displayName": "VRCFury Auto Tools",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "unity": "2022.3",
   "description": "Addon for VRCFury: automatic outfit toggle creator and zero-weight bone remover. Uses only VRCFury's public API.",
   "keywords": ["vrcfury", "outfit", "toggle", "bones", "performance"],
