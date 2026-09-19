@@ -73,7 +73,6 @@
             {{~ end ~}}
           </p>
           {{~ end ~}}
-          <p><a class="btn small" href="{{ package.ZipUrl }}">Download .zip</a></p>
         </article>
         {{~ end ~}}
       </div>
@@ -82,13 +81,7 @@
 
   <footer class="wrap">
     {{~ if listingInfo.Author.Name ~}}
-    <p>Published by
-      {{~ if listingInfo.Author.Url ~}}<a href="{{ listingInfo.Author.Url }}">{{ listingInfo.Author.Name | html.escape }}</a>
-      {{~ else ~}}{{ listingInfo.Author.Name | html.escape }}{{ end }}
-    </p>
-    {{~ end ~}}
-    {{~ if listingInfo.InfoLink.Url ~}}
-    <p><a href="{{ listingInfo.InfoLink.Url }}">{{ if listingInfo.InfoLink.Text; listingInfo.InfoLink.Text; else; "Learn more"; end }}</a></p>
+    <p>Published by {{ listingInfo.Author.Name | html.escape }}</p>
     {{~ end ~}}
     <p class="meta">Not affiliated with VRChat or VRCFury. Requires <a href="https://vrcfury.com">VRCFury</a> installed separately.</p>
   </footer>
