@@ -130,7 +130,7 @@ namespace VRCFuryAutoTools {
         }
 
         /// <summary>Drops the given bones from a mesh's bone list + bindposes + weights, on a cloned mesh.</summary>
-        private static void Compact(SkinnedMeshRenderer smr, HashSet<Transform> removed) {
+        internal static void Compact(SkinnedMeshRenderer smr, HashSet<Transform> removed) {
             var mesh = smr.sharedMesh;
             var bones = smr.bones;
             if (mesh == null) return;

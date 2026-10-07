@@ -1,6 +1,6 @@
 # VRCFury Auto Tools
 
-Two small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
+Three small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
 Add a component, upload your avatar, and it's done.
 
 ## What's inside
@@ -21,6 +21,12 @@ Some bones in an avatar or outfit don't actually move anything. They just add to
 performance rating. Put this on your avatar or an outfit and those unused bones are removed when you upload.
 Bones that are still needed (like physbones, constraints or animated parts) are left alone, and your original
 files are never changed. You can preview what would be removed before you upload.
+
+### Automatic Mesh Bone Stripper
+Only using a few meshes from an outfit or another avatar base? Add them to the list and every bone in their
+armature that they aren't weighted to is removed when you upload. Hips, Spine, Chest, Upper Chest, Neck and Head
+are kept by default, and each one can be switched off. This tool is strict: a mesh that isn't in the list doesn't
+protect its bones, so use the preview to check before you upload.
 
 ## Install
 
