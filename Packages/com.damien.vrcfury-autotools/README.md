@@ -32,7 +32,7 @@ protect its bones, so use the preview to check before you upload.
 Put this on your avatar and every humanoid bone gets a PhysBone collider sized to the bone's length and the mesh
 around it. Put it on any other bone, like a tail or an ear, and that bone and all its children get one. The
 colliders are created right when you add the component, not at upload, so your PhysBones and other tools can
-use them straight away. Change the radius scale and hit **Regenerate colliders** to tune the fit.
+use them straight away. Fingers, toes and eyes can be left out. Change the radius scale and hit **Regenerate colliders** to tune the fit.
 
 ## Install
 

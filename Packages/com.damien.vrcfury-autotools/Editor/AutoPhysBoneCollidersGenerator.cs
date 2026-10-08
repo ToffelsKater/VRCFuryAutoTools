@@ -24,6 +24,11 @@ namespace VRCFuryAutoTools {
             ObjectFactory.componentWasAdded += c => { if (c is AutoPhysBoneColliders a) Generate(a); };
         }
 
+        private static bool Ignored(AutoPhysBoneColliders c, B bone) =>
+            (c.ignoreFingers && bone >= B.LeftThumbProximal && bone <= B.RightLittleDistal)
+            || (c.ignoreToes && (bone == B.LeftToes || bone == B.RightToes))
+            || (c.ignoreEyes && (bone == B.LeftEye || bone == B.RightEye));
+
         private static Transform Next(Animator animator, B bone) {
             // each finger is three bones in a row: proximal, intermediate, distal
             if (bone >= B.LeftThumbProximal && bone <= B.RightLittleDistal)
@@ -99,11 +104,14 @@ namespace VRCFuryAutoTools {
 
             // humanoid bone -> the bone its capsule points at
             var human = new Dictionary<Transform, Transform>();
+            var ignored = new HashSet<Transform>(); // still a capsule's end point, just no collider of their own
             var animator = root.GetComponent<Animator>();
             if (animator != null && animator.isHuman) {
                 for (var i = 0; i < (int)B.LastBone; i++) {
                     var t = animator.GetBoneTransform((B)i);
-                    if (t != null) human[t] = Next(animator, (B)i);
+                    if (t == null) continue;
+                    human[t] = Next(animator, (B)i);
+                    if (Ignored(c, (B)i)) ignored.Add(t);
                 }
             }
 
@@ -118,6 +126,7 @@ namespace VRCFuryAutoTools {
             c.colliders.Clear();
 
             foreach (var bone in bones) {
+                if (ignored.Contains(bone)) continue;
                 if (!points.TryGetValue(bone, out var list)) continue; // moves no mesh, nothing to collide with
                 if (!human.TryGetValue(bone, out var next))
                     next = bone.Cast<Transform>().FirstOrDefault(points.ContainsKey) ?? (bone.childCount > 0 ? bone.GetChild(0) : null);

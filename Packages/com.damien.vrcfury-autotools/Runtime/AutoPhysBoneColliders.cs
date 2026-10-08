@@ -13,6 +13,10 @@ namespace VRCFuryAutoTools {
     public class AutoPhysBoneColliders : MonoBehaviour, IEditorOnly {
         [Tooltip("Multiplies every collider radius. Lower it if colliders stick out of the mesh, then regenerate")]
         public float radiusScale = 1f;
+        [Header("No collider on these humanoid bones (regenerate to apply)")]
+        public bool ignoreFingers;
+        public bool ignoreToes;
+        public bool ignoreEyes;
         [Tooltip("Colliders this component created. Regenerating updates them in place")]
         public List<VRCPhysBoneColliderBase> colliders = new List<VRCPhysBoneColliderBase>();
     }
