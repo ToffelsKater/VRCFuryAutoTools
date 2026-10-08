@@ -3,7 +3,7 @@
   "displayName": "VRCFury Auto Tools",
   "version": "0.1.5",
   "unity": "2022.3",
-  "description": "Addon for VRCFury: automatic outfit toggle creator, zero-weight bone remover and mesh bone stripper. Uses only VRCFury's public API.",
+  "description": "Addon for VRCFury: automatic outfit toggle creator, zero-weight bone remover, mesh bone stripper and PhysBone collider creator. Uses only VRCFury's public API.",
   "keywords": ["vrcfury", "outfit", "toggle", "bones", "performance"],
   "author": {
     "name": "ToffelsKater",

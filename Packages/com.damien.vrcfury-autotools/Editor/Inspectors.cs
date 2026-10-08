@@ -32,6 +32,14 @@ namespace VRCFuryAutoTools {
         }
     }
 
+    [CustomEditor(typeof(AutoPhysBoneColliders))]
+    internal class AutoPhysBoneCollidersEditor : Editor {
+        public override void OnInspectorGUI() {
+            DrawDefaultInspector();
+            if (GUILayout.Button("Regenerate colliders")) AutoPhysBoneCollidersGenerator.Generate((AutoPhysBoneColliders)target);
+        }
+    }
+
     [CustomEditor(typeof(MeshBoneStripper))]
     internal class MeshBoneStripperEditor : Editor {
         private ZeroWeightBoneAnalysis.Result result;

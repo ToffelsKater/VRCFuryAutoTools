@@ -7,7 +7,8 @@
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "VRCSDKBase.dll"
+        "VRCSDKBase.dll",
+        "VRC.Dynamics.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [],
