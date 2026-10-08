@@ -34,6 +34,18 @@ namespace VRCFuryAutoTools {
 
     [CustomEditor(typeof(AutoPhysBoneColliders))]
     internal class AutoPhysBoneCollidersEditor : Editor {
+        private AutoPhysBoneColliders component; // kept so its collider list is still readable once the component is gone
+
+        private void OnEnable() => component = (AutoPhysBoneColliders)target;
+
+        // the inspector closing with a destroyed target means the component (or its object) was removed: its colliders go too.
+        // Not in play mode, where build tools strip the component from the avatar and the colliders have to stay.
+        private void OnDestroy() {
+            if (target != null || ReferenceEquals(component, null) || EditorApplication.isPlayingOrWillChangePlaymode) return;
+            var colliders = component.colliders;
+            EditorApplication.delayCall += () => AutoPhysBoneCollidersGenerator.Remove(colliders);
+        }
+
         public override void OnInspectorGUI() {
             DrawDefaultInspector();
             if (GUILayout.Button("Regenerate colliders")) AutoPhysBoneCollidersGenerator.Generate((AutoPhysBoneColliders)target);

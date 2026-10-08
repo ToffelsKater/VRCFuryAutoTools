@@ -17,7 +17,7 @@ namespace VRCFuryAutoTools {
         public bool ignoreFingers;
         public bool ignoreToes;
         public bool ignoreEyes;
-        [Tooltip("Colliders this component created. Regenerating updates them in place")]
+        [Tooltip("Colliders this component created. Regenerating replaces them, removing the component deletes them")]
         public List<VRCPhysBoneColliderBase> colliders = new List<VRCPhysBoneColliderBase>();
     }
 }

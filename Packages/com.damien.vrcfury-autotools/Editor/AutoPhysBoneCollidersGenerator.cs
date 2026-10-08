@@ -94,11 +94,15 @@ namespace VRCFuryAutoTools {
                 col.position = center;
             }
             col.radius = radius / total * scale;
-            PrefabUtility.RecordPrefabInstancePropertyModifications(col);
+        }
+
+        /// <summary>Deletes every collider the component created.</summary>
+        public static void Remove(List<VRCPhysBoneColliderBase> colliders) {
+            foreach (var k in colliders) if (k != null) Undo.DestroyObjectImmediate(k);
+            colliders.Clear();
         }
 
         public static void Generate(AutoPhysBoneColliders c) {
-            const string undo = "Generate PhysBone colliders";
             var root = ZeroWeightBoneAnalysis.AvatarRoot(c);
             var points = Points(root);
 
@@ -119,25 +123,18 @@ namespace VRCFuryAutoTools {
             var chain = human.Count == 0 || (c.transform != root.transform && !human.ContainsKey(c.transform));
             var bones = chain ? c.GetComponentsInChildren<Transform>(true) : human.Keys.Where(t => t.IsChildOf(c.transform));
 
-            // colliders from an earlier run are updated in place, so references to them survive
-            var old = new Dictionary<Transform, VRCPhysBoneColliderBase>();
-            foreach (var k in c.colliders) if (k != null) old[k.transform] = k;
-            Undo.RecordObject(c, undo);
-            c.colliders.Clear();
+            Undo.RecordObject(c, "Generate PhysBone colliders");
+            Remove(c.colliders); // colliders from an earlier run
 
             foreach (var bone in bones) {
                 if (ignored.Contains(bone)) continue;
                 if (!points.TryGetValue(bone, out var list)) continue; // moves no mesh, nothing to collide with
                 if (!human.TryGetValue(bone, out var next))
                     next = bone.Cast<Transform>().FirstOrDefault(points.ContainsKey) ?? (bone.childCount > 0 ? bone.GetChild(0) : null);
-                if (old.TryGetValue(bone, out var col)) {
-                    old.Remove(bone);
-                    Undo.RecordObject(col, undo);
-                } else col = Undo.AddComponent<VRCPhysBoneCollider>(bone.gameObject);
+                var col = Undo.AddComponent<VRCPhysBoneCollider>(bone.gameObject);
                 Fit(col, next != null ? bone.InverseTransformPoint(next.position) : Vector3.zero, list, c.radiusScale);
                 c.colliders.Add(col);
             }
-            foreach (var k in old.Values) Undo.DestroyObjectImmediate(k); // bones that no longer get one
             PrefabUtility.RecordPrefabInstancePropertyModifications(c);
         }
     }
