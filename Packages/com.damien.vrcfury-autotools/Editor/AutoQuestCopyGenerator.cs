@@ -32,9 +32,19 @@ namespace VRCFuryAutoTools {
             if (shader == null) shader = Shader.Find("VRChat/Mobile/Toon Lit"); // SDKs before 3.8.1 have no Toon Standard
             var m = new Material(shader) { name = src.name, enableInstancing = true };
             if (src.HasProperty("_MainTex")) {
-                m.mainTexture = src.mainTexture;
-                m.mainTextureOffset = src.mainTextureOffset;
-                m.mainTextureScale = src.mainTextureScale;
+                // Toon Standard reads its main texture from UV0 only. A main texture the source reads from UV1 (Poiyomi's _MainTexUV)
+                // goes in the detail slot, the one albedo slot with a UV choice: multiplied over the white main texture it looks the same.
+                // ponytail: UV2/UV3 stay on the main slot (wrong UV), Toon Standard has no slot for them. Bake the texture to UV0 if that matters.
+                var detail = src.HasProperty("_MainTexUV") && src.GetFloat("_MainTexUV") == 1 && m.HasProperty("_DetailAlbedoMap");
+                var slot = detail ? "_DetailAlbedoMap" : "_MainTex";
+                m.SetTexture(slot, src.mainTexture);
+                m.SetTextureOffset(slot, src.mainTextureOffset);
+                m.SetTextureScale(slot, src.mainTextureScale);
+                if (detail) {
+                    m.EnableKeyword("USE_DETAIL_MAPS");
+                    m.SetFloat("_DetailMode", 2); // Multiply
+                    m.SetFloat("_DetailUV", 1);
+                }
             }
             if (src.HasProperty("_Color") && m.HasProperty("_Color")) m.color = src.color;
             return m;
