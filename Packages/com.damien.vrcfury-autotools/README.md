@@ -44,8 +44,8 @@ constraints become VRChat constraints, and textures bigger than 1024 (adjustable
 the copy capped for Android and iOS. Your original materials and textures are never changed. The copy keeps your
 avatar's blueprint ID, so upload the PC version first, then switch the SDK to Android and upload the copy.
 **Regenerate Quest copy** replaces it, and removing the component deletes it again, with its folder of material and
-texture copies (moved to the trash). Objects you add to the **Blacklist** are left out of the copy together with all their
-children. It isn't optimized: expect a Very Poor rank until you trim it down.
+texture copies (moved to the trash). Anything you add to the **Blacklist** is left out of the copy: an object together with
+all its children, or a single component (drag in its header) while its object stays. It isn't optimized: expect a Very Poor rank until you trim it down.
 
 ## Install
 

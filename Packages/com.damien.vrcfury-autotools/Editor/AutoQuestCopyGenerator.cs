@@ -146,16 +146,25 @@ namespace VRCFuryAutoTools {
             return copies.Count;
         }
 
-        /// <summary>The object in <paramref name="copy"/> at the same place as <paramref name="original"/> in <paramref name="root"/>, found by
-        /// sibling index (names can repeat). Null if the original is not below the root.</summary>
-        private static Transform Counterpart(Transform original, Transform root, Transform copy) {
+        /// <summary>
+        /// What a blacklist entry is in <paramref name="copy"/>: a GameObject (or Transform) gives the object at the same place, found by
+        /// sibling index since names can repeat; any other component gives the same component there, found by its index among the
+        /// components of its type on that object. Null for the avatar root object itself and for anything outside the avatar.
+        /// </summary>
+        private static Object Counterpart(Object entry, Transform root, Transform copy) {
+            var k = entry as Component;
+            var wholeObject = k == null || k is Transform;
+            var original = entry is GameObject g ? g.transform : k != null ? k.transform : null;
+            if (original == null || (wholeObject && original == root)) return null;
             var path = new Stack<int>();
             for (var t = original; t != root; t = t.parent) {
                 if (t == null) return null;
                 path.Push(t.GetSiblingIndex());
             }
             foreach (var i in path) copy = copy.GetChild(i);
-            return copy;
+            if (wholeObject) return copy.gameObject;
+            var type = k.GetType();
+            return copy.GetComponents(type)[System.Array.IndexOf(original.GetComponents(type), k)];
         }
 
         /// <summary>
@@ -180,12 +189,11 @@ namespace VRCFuryAutoTools {
             copy.name = root.name + " (Quest)";
             copy.transform.SetSiblingIndex(root.transform.GetSiblingIndex() + 1);
             copy.transform.position += root.transform.right; // beside the original instead of inside it
-            foreach (var k in copy.GetComponentsInChildren<AutoQuestCopy>(true)) Undo.DestroyObjectImmediate(k);
 
-            // all looked up before any is deleted, deleting shifts sibling indices. Never the avatar root itself.
-            var blacklisted = c.blacklist.Where(o => o != null && o != root)
-                .Select(o => Counterpart(o.transform, root.transform, copy.transform)).Where(t => t != null).ToList();
-            foreach (var t in blacklisted) if (t != null) Undo.DestroyObjectImmediate(t.gameObject); // null: went with a blacklisted parent
+            // all looked up before anything in the copy is deleted, deleting shifts sibling and component indices
+            var blacklisted = c.blacklist.Select(o => Counterpart(o, root.transform, copy.transform)).Where(o => o != null).ToList();
+            foreach (var k in copy.GetComponentsInChildren<AutoQuestCopy>(true)) Undo.DestroyObjectImmediate(k);
+            foreach (var o in blacklisted) if (o != null) Undo.DestroyObjectImmediate(o); // null: went with a blacklisted parent
 
             // joints, spatial audio and flare layers go before the rigidbody, audio source and camera they require
             var removed = copy.GetComponentsInChildren<Component>(true).Where(k => k != null && PcOnly(k))
@@ -224,7 +232,7 @@ namespace VRCFuryAutoTools {
             PrefabUtility.RecordPrefabInstancePropertyModifications(c);
             Undo.CollapseUndoOperations(group);
             Debug.Log($"[VRCFuryAutoTools] Made '{copy.name}': {copies.Count} materials copied to {folder} ({converted} switched to mobile shaders), "
-                + $"{blacklisted.Count} blacklisted objects left out, {removed.Count} PC-only components removed, "
+                + $"{blacklisted.Count} blacklisted objects/components left out, {removed.Count} PC-only components removed, "
                 + $"{capped} textures copied and capped for Android/iOS. Switch the SDK to Android and upload it.", copy);
         }
     }
