@@ -41,7 +41,8 @@ for Quest and Android. Every material is copied into its own folder in `Assets/V
 materials are never changed, and copies with PC shaders get a VRChat mobile shader that keeps the main texture and color.
 The parts Quest doesn't allow (lights, cloth, audio, physics colliders and rigidbodies, cameras) are removed, Unity
 constraints become VRChat constraints, and textures bigger than 1024 (adjustable) are copied into the same folder with
-the copy capped for Android and iOS. Your original materials and textures are never changed. The copy keeps your
+the copy capped for Android and iOS. Your original materials and textures are never changed. If the copy is still over
+the 10 MB download limit when you upload it, its biggest textures are halved (again only in copies) until it fits. The copy keeps your
 avatar's blueprint ID, so upload the PC version first, then switch the SDK to Android and upload the copy.
 **Regenerate Quest copy** replaces it, and removing the component deletes it again, with its folder of material and
 texture copies (moved to the trash). Anything you add to the **Blacklist** is left out of the copy: an object together with

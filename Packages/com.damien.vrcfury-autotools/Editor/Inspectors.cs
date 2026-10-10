@@ -75,7 +75,8 @@ namespace VRCFuryAutoTools {
         public override void OnInspectorGUI() {
             DrawDefaultInspector();
             EditorGUILayout.HelpBox("The copy takes the avatar's blueprint ID, so upload the PC version first and regenerate if it had none yet. "
-                + "Then switch the SDK to Android, select the copy and upload it. Edits to the original only reach the copy when you regenerate.",
+                + "Then switch the SDK to Android, select the copy and upload it. Edits to the original only reach the copy when you regenerate. "
+                + "If the copy is over the 10 MB download limit, the upload first halves its biggest textures until it fits.",
                 MessageType.Info);
             if (GUILayout.Button("Regenerate Quest copy")) AutoQuestCopyGenerator.Generate((AutoQuestCopy)target);
         }

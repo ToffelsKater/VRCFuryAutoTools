@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Animations;
 using VRC.SDK3.Avatars;
+using VRC.SDKBase.Editor.BuildPipeline;
 using Object = UnityEngine.Object;
 
 namespace VRCFuryAutoTools {
@@ -120,44 +121,54 @@ namespace VRCFuryAutoTools {
             return s.overridden ? s.maxTextureSize : importer.maxTextureSize;
         }
 
+        /// The longer side of the texture as Android/iOS import it (the bigger of the two). 0 for what is no standalone texture
+        /// file (one inside a model, a render texture): those can't be capped.
+        private static int MobileSize(Texture t) {
+            if (!(AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(t)) is TextureImporter importer) || !AssetDatabase.IsMainAsset(t)) return 0;
+            importer.GetSourceTextureWidthAndHeight(out var w, out var h);
+            return MobilePlatforms.Max(p => Mathf.Min(Mathf.Max(w, h), MaxSize(importer, p)));
+        }
+
         /// <summary>
-        /// Textures of the materials that Android or iOS would import bigger than <paramref name="size"/> are copied into
-        /// the folder, the copy gets the smaller Android/iOS size and the materials use the copy. The originals are never changed.
-        /// Returns how many were copied.
+        /// Textures of the materials that Android or iOS would import bigger than <paramref name="size"/> gives for them get that
+        /// smaller Android/iOS size. Never the original files: those are copied into the folder first and the materials use the copy.
+        /// A copy of an earlier call just shrinks. <paramref name="used"/> are the file names no new copy may take.
+        /// Returns how many textures were capped.
         /// </summary>
-        private static int CapTextures(List<Material> materials, string folder, int size) {
-            size = Mathf.ClosestPowerOfTwo(Mathf.Clamp(size, 32, 8192));
+        private static int CapTextures(List<Material> materials, string folder, System.Func<Texture, int> size, HashSet<string> used) {
             var textures = materials.SelectMany(m => m.GetTexturePropertyNames().Select(n => m.GetTexture(n))).Where(t => t != null).Distinct();
             var copies = new Dictionary<Texture, string>();
-            var used = new HashSet<string>();
-            AssetDatabase.StartAssetEditing();
-            try {
-                foreach (var t in textures) {
-                    var path = AssetDatabase.GetAssetPath(t);
-                    // only standalone texture files (not ones inside a model), and never a file of this folder: it gets deleted below
-                    if (!(AssetImporter.GetAtPath(path) is TextureImporter importer) || !AssetDatabase.IsMainAsset(t) || path.StartsWith(folder + "/")) continue;
-                    importer.GetSourceTextureWidthAndHeight(out var w, out var h);
-                    if (MobilePlatforms.All(p => Mathf.Min(Mathf.Max(w, h), MaxSize(importer, p)) <= size)) continue; // small enough as it is
-                    var name = Path.GetFileNameWithoutExtension(path);
-                    var ext = Path.GetExtension(path);
-                    var file = name + ext;
-                    for (var n = 2; !used.Add(file); n++) file = $"{name} {n}{ext}";
-                    var dest = $"{folder}/{file}";
-                    // ponytail: copied fresh on every regenerate (and imported twice) so edits to the original come along. Reuse the copy if that gets slow.
-                    AssetDatabase.DeleteAsset(dest);
-                    if (AssetDatabase.CopyAsset(path, dest)) copies[t] = dest; // the copy keeps the original's import settings
+            var caps = new Dictionary<string, int>(); // by file in the folder
+            // not inside StartAssetEditing: there the copies are not always imported by the time their importers are needed below
+            foreach (var t in textures) {
+                var max = size(t);
+                if (MobileSize(t) <= max) continue; // small enough as it is
+                var path = AssetDatabase.GetAssetPath(t);
+                if (path.StartsWith(folder + "/")) { // a copy already
+                    caps[path] = max;
+                    continue;
                 }
-            } finally {
-                AssetDatabase.StopAssetEditing(); // imports the copies, so their importers exist below
+                var name = Path.GetFileNameWithoutExtension(path);
+                var ext = Path.GetExtension(path);
+                var file = name + ext;
+                for (var n = 2; !used.Add(file); n++) file = $"{name} {n}{ext}";
+                var dest = $"{folder}/{file}";
+                // ponytail: copied fresh on every regenerate (and imported twice) so edits to the original come along. Reuse the copy if that gets slow.
+                AssetDatabase.DeleteAsset(dest);
+                if (!AssetDatabase.CopyAsset(path, dest)) continue; // the copy keeps the original's import settings
+                copies[t] = dest;
+                caps[dest] = max;
             }
 
+            var capped = 0;
             AssetDatabase.StartAssetEditing();
             try {
-                foreach (var dest in copies.Values) {
-                    var importer = (TextureImporter)AssetImporter.GetAtPath(dest);
+                foreach (var cap in caps) {
+                    if (!(AssetImporter.GetAtPath(cap.Key) is TextureImporter importer)) continue;
+                    capped++;
                     foreach (var platform in MobilePlatforms) {
                         var s = importer.GetPlatformTextureSettings(platform);
-                        s.maxTextureSize = Mathf.Min(MaxSize(importer, platform), size); // never bigger than the original had it
+                        s.maxTextureSize = Mathf.Min(MaxSize(importer, platform), cap.Value); // never bigger than the original had it
                         s.overridden = true;
                         importer.SetPlatformTextureSettings(s);
                     }
@@ -174,7 +185,75 @@ namespace VRCFuryAutoTools {
                 EditorUtility.SetDirty(m);
                 AssetDatabase.SaveAssetIfDirty(m);
             }
-            return copies.Count;
+            return capped;
+        }
+
+        /// What Android and iOS allow an avatar to be as download: the size of the asset bundle the SDK builds, checked when it uploads.
+        private const long DownloadLimit = 10 * 1024 * 1024;
+
+        /// Fitting never makes a texture smaller than this.
+        private const int SmallestFit = 64;
+
+        /// ponytail: guess of the bundle bytes one pixel less saves (ASTC 6x6 with mipmaps is 0.6 before the bundle's compression).
+        /// Only decides how many textures shrink between two measurements: lower shrinks more at once, for fewer builds.
+        private const float BytesPerPixel = 0.5f;
+
+        /// <summary>
+        /// For the avatar the SDK is about to build for Android/iOS: if it is a Quest copy and over the download limit, the biggest
+        /// textures of its materials are halved until it fits. Measured with a build like the SDK's own (same options, same
+        /// platform), so with the size the SDK is going to check.
+        /// </summary>
+        public static void Fit(GameObject avatar) {
+            var target = EditorUserBuildSettings.activeBuildTarget;
+            // not in play mode: tools run the SDK's build hooks there to test an avatar
+            if (EditorApplication.isPlayingOrWillChangePlaymode || (target != BuildTarget.Android && target != BuildTarget.iOS)) return;
+            // a Quest copy is known by its materials: they are in its folder of copies
+            var folder = avatar.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).Where(m => m != null)
+                .Select(m => AssetDatabase.GetAssetPath(m)).Where(p => p.StartsWith(CopiesRoot + "/"))
+                .Select(p => p.Substring(0, p.LastIndexOf('/'))).FirstOrDefault();
+            if (folder == null) return;
+
+            const string output = "Temp/VRCFuryAutoTools";
+            var prefab = $"{folder}/Size check.prefab";
+            var build = new AssetBundleBuild { assetBundleName = "questcopy", assetNames = new[] { prefab } };
+            long first = 0, bytes = 0;
+            var halved = 0;
+            try {
+                PrefabUtility.SaveAsPrefabAsset(avatar, prefab);
+                Directory.CreateDirectory(output);
+                var used = new HashSet<string>(Directory.GetFiles(folder).Select(Path.GetFileName), System.StringComparer.OrdinalIgnoreCase);
+                for (;;) {
+                    if (BuildPipeline.BuildAssetBundles(output, new[] { build }, BuildAssetBundleOptions.None, target) == null) return; // the SDK's build reports why
+                    bytes = new FileInfo($"{output}/{build.assetBundleName}").Length;
+                    if (first == 0) first = bytes;
+                    var over = bytes - DownloadLimit;
+                    if (over <= 0) break;
+
+                    // only what the bundle holds, and only through the copy's own materials (not menu icons)
+                    var materials = AssetDatabase.GetDependencies(prefab).Where(p => p.StartsWith(folder + "/"))
+                        .Select(p => AssetDatabase.LoadAssetAtPath<Material>(p)).Where(m => m != null).ToList();
+                    var sizes = new Dictionary<Texture, int>();
+                    foreach (var t in materials.SelectMany(m => m.GetTexturePropertyNames().Select(n => m.GetTexture(n))).Where(t => t != null)
+                                 .Distinct().OrderByDescending(MobileSize)) {
+                        var s = MobileSize(t);
+                        if (s <= SmallestFit || over <= 0) break;
+                        sizes[t] = Mathf.NextPowerOfTwo(s) / 2;
+                        over -= (long)(0.75f * s * s * BytesPerPixel); // halving leaves a quarter of the pixels
+                    }
+                    var capped = CapTextures(materials, folder, t => sizes.TryGetValue(t, out var cap) ? cap : int.MaxValue, used);
+                    if (capped == 0) { // nothing left to shrink (or a texture that can't be copied): stop instead of building forever
+                        Debug.LogWarning($"[VRCFuryAutoTools] '{avatar.name}' is {bytes / 1048576f:0.00} MB, over the {DownloadLimit / 1048576} MB download limit, "
+                            + $"and its textures can't shrink further (smallest: {SmallestFit}). Remove meshes or blendshapes, or blacklist objects.", avatar);
+                        return;
+                    }
+                    halved += capped;
+                }
+            } finally {
+                AssetDatabase.DeleteAsset(prefab);
+            }
+            if (halved > 0)
+                Debug.Log($"[VRCFuryAutoTools] '{avatar.name}' was {first / 1048576f:0.00} MB, over the {DownloadLimit / 1048576} MB download limit: "
+                    + $"halved its biggest textures {halved} times, now {bytes / 1048576f:0.00} MB.", avatar);
         }
 
         /// <summary>
@@ -257,7 +336,8 @@ namespace VRCFuryAutoTools {
                 so.ApplyModifiedProperties();
             }
 
-            var capped = CapTextures(copies.Values.Distinct().ToList(), folder, c.maxTextureSize);
+            var max = Mathf.ClosestPowerOfTwo(Mathf.Clamp(c.maxTextureSize, 32, 8192));
+            var capped = CapTextures(copies.Values.Distinct().ToList(), folder, t => max, new HashSet<string>());
 
             c.questCopy = copy;
             PrefabUtility.RecordPrefabInstancePropertyModifications(c);
@@ -265,6 +345,16 @@ namespace VRCFuryAutoTools {
             Debug.Log($"[VRCFuryAutoTools] Made '{copy.name}': {copies.Count} materials copied to {folder} ({converted} switched to mobile shaders), "
                 + $"{blacklisted.Count} blacklisted objects/components left out, {removed.Count} PC-only components removed, "
                 + $"{capped} textures copied and capped for Android/iOS. Switch the SDK to Android and upload it.", copy);
+        }
+    }
+
+    /// <summary>Runs after everything else in the SDK's avatar build, so on the avatar as it gets uploaded.</summary>
+    internal class AutoQuestCopyFitHook : IVRCSDKPreprocessAvatarCallback {
+        public int callbackOrder => int.MaxValue;
+
+        public bool OnPreprocessAvatar(GameObject avatar) {
+            AutoQuestCopyGenerator.Fit(avatar);
+            return true;
         }
     }
 }
