@@ -26,25 +26,46 @@ namespace VRCFuryAutoTools {
                 || (k.GetType().Namespace ?? "").StartsWith("RootMotion.FinalIK");
         }
 
-        /// Main texture and color on a mobile shader. Everything else (normal maps, emission, transparency) is dropped.
+        /// lilToon's blend modes (Normal, Add, Screen, Multiply) as Toon Standard detail modes. It has no Screen, Additive is closest.
+        private static readonly int[] DetailModes = { 0, 1, 1, 2 };
+
+        /// <summary>
+        /// The texture property of <paramref name="src"/> that it reads from UV1, with the Toon Standard detail mode that shows it
+        /// the same, or null. Toon Standard reads its main texture from UV0 only: the detail texture is its one color slot with a
+        /// UV choice (UV0 or UV1), so that is where this texture has to go.
+        /// </summary>
+        // ponytail: one slot, so only the first UV1 texture is kept, without its tint, mask or rotation, and UV2/UV3 have no slot at all.
+        // Bake the textures into one on UV0 if that matters.
+        private static (string property, int mode) Uv1Texture(Material src) {
+            // Poiyomi's main texture. Multiplied over the white main texture it looks the same.
+            if (src.HasProperty("_MainTexUV") && src.GetFloat("_MainTexUV") == 1) return ("_MainTex", 2);
+            // lilToon's 2nd and 3rd main texture, blended over the main one
+            foreach (var n in new[] { "2nd", "3rd" }) {
+                var p = $"_Main{n}Tex";
+                if (src.HasProperty(p) && src.GetTexture(p) != null && src.GetFloat($"_UseMain{n}Tex") != 0 && src.GetFloat(p + "_UVMode") == 1)
+                    return (p, DetailModes[Mathf.Clamp((int)src.GetFloat(p + "BlendMode"), 0, 3)]);
+            }
+            return (null, 0);
+        }
+
+        /// Main texture, color and one texture on UV1 on a mobile shader. Everything else (normal maps, emission, transparency) is dropped.
         private static Material Convert(Material src, bool particle) {
             var shader = Shader.Find(particle ? "VRChat/Mobile/Particles/Additive" : "VRChat/Mobile/Toon Standard");
             if (shader == null) shader = Shader.Find("VRChat/Mobile/Toon Lit"); // SDKs before 3.8.1 have no Toon Standard
             var m = new Material(shader) { name = src.name, enableInstancing = true };
-            if (src.HasProperty("_MainTex")) {
-                // Toon Standard reads its main texture from UV0 only. A main texture the source reads from UV1 (Poiyomi's _MainTexUV)
-                // goes in the detail slot, the one albedo slot with a UV choice: multiplied over the white main texture it looks the same.
-                // ponytail: UV2/UV3 stay on the main slot (wrong UV), Toon Standard has no slot for them. Bake the texture to UV0 if that matters.
-                var detail = src.HasProperty("_MainTexUV") && src.GetFloat("_MainTexUV") == 1 && m.HasProperty("_DetailAlbedoMap");
-                var slot = detail ? "_DetailAlbedoMap" : "_MainTex";
-                m.SetTexture(slot, src.mainTexture);
-                m.SetTextureOffset(slot, src.mainTextureOffset);
-                m.SetTextureScale(slot, src.mainTextureScale);
-                if (detail) {
-                    m.EnableKeyword("USE_DETAIL_MAPS");
-                    m.SetFloat("_DetailMode", 2); // Multiply
-                    m.SetFloat("_DetailUV", 1);
-                }
+            var (detail, mode) = m.HasProperty("_DetailAlbedoMap") ? Uv1Texture(src) : (null, 0);
+            if (detail != null) {
+                m.SetTexture("_DetailAlbedoMap", src.GetTexture(detail));
+                m.SetTextureOffset("_DetailAlbedoMap", src.GetTextureOffset(detail));
+                m.SetTextureScale("_DetailAlbedoMap", src.GetTextureScale(detail));
+                m.EnableKeyword("USE_DETAIL_MAPS");
+                m.SetFloat("_DetailMode", mode);
+                m.SetFloat("_DetailUV", 1);
+            }
+            if (detail != "_MainTex" && src.HasProperty("_MainTex")) {
+                m.mainTexture = src.mainTexture;
+                m.mainTextureOffset = src.mainTextureOffset;
+                m.mainTextureScale = src.mainTextureScale;
             }
             if (src.HasProperty("_Color") && m.HasProperty("_Color")) m.color = src.color;
             return m;
