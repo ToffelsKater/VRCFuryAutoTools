@@ -4,7 +4,9 @@
     "references": [
         "VRCFuryAutoTools.Runtime",
         "com.vrcfury.api",
-        "VRC.SDKBase.Editor.BuildPipeline"
+        "VRC.SDKBase.Editor.BuildPipeline",
+        "VRC.SDKBase",
+        "VRC.SDK3A.Editor"
     ],
     "includePlatforms": [
         "Editor"

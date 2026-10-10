@@ -52,6 +52,17 @@ namespace VRCFuryAutoTools {
         }
     }
 
+    [CustomEditor(typeof(AutoQuestCopy))]
+    internal class AutoQuestCopyEditor : Editor {
+        public override void OnInspectorGUI() {
+            DrawDefaultInspector();
+            EditorGUILayout.HelpBox("The copy takes the avatar's blueprint ID, so upload the PC version first and regenerate if it had none yet. "
+                + "Then switch the SDK to Android, select the copy and upload it. Edits to the original only reach the copy when you regenerate.",
+                MessageType.Info);
+            if (GUILayout.Button("Regenerate Quest copy")) AutoQuestCopyGenerator.Generate((AutoQuestCopy)target);
+        }
+    }
+
     [CustomEditor(typeof(MeshBoneStripper))]
     internal class MeshBoneStripperEditor : Editor {
         private ZeroWeightBoneAnalysis.Result result;

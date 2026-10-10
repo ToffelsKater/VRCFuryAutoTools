@@ -1,6 +1,6 @@
 # VRCFury Auto Tools
 
-Four small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
+Five small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
 Add a component, upload your avatar, and it's done.
 
 ## What's inside
@@ -34,6 +34,15 @@ around it. Put it on any other bone, like a tail or an ear, and that bone and al
 colliders are created right when you add the component, not at upload, so your PhysBones and other tools can
 use them straight away. Fingers, toes and eyes can be left out. Change the radius scale and hit **Regenerate colliders** to tune the fit.
 Regenerating replaces the old colliders, and removing the component deletes them again.
+
+### Automatic Quest Copy Creator
+Put this on your avatar and a copy of it appears next to it, changed just enough for the SDK to let you upload it
+for Quest and Android. Every material is copied into `Assets/VRCFuryAutoTools/Quest Copies/<avatar>`, so your PC
+materials are never changed, and copies with PC shaders get a VRChat mobile shader that keeps the main texture and color.
+The parts Quest doesn't allow (lights, cloth, audio, physics colliders and rigidbodies, cameras) are removed, Unity
+constraints become VRChat constraints, and textures bigger than 1024 (adjustable) are copied into the same folder with
+the copy capped for Android and iOS. Your original materials and textures are never changed. The copy keeps your
+avatar's blueprint ID, so upload the PC version first, then switch the SDK to Android and upload the copy. It isn't optimized: expect a Very Poor rank until you trim it down.
 
 ## Install
 
