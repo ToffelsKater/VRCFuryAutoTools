@@ -67,8 +67,9 @@ namespace VRCFuryAutoTools {
         private void OnDestroy() {
             if (target != null || ReferenceEquals(component, null) || EditorApplication.isPlayingOrWillChangePlaymode) return;
             var copy = component.questCopy;
+            var folder = component.copiesFolder;
             var o = owner;
-            EditorApplication.delayCall += () => AutoQuestCopyGenerator.Remove(copy, o);
+            EditorApplication.delayCall += () => AutoQuestCopyGenerator.Remove(copy, o, folder);
         }
 
         public override void OnInspectorGUI() {

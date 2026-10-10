@@ -37,14 +37,15 @@ Regenerating replaces the old colliders, and removing the component deletes them
 
 ### Automatic Quest Copy Creator
 Put this on your avatar and a copy of it appears next to it, changed just enough for the SDK to let you upload it
-for Quest and Android. Every material is copied into `Assets/VRCFuryAutoTools/Quest Copies/<avatar>`, so your PC
+for Quest and Android. Every material is copied into its own folder in `Assets/VRCFuryAutoTools/Quest Copies`, so your PC
 materials are never changed, and copies with PC shaders get a VRChat mobile shader that keeps the main texture and color.
 The parts Quest doesn't allow (lights, cloth, audio, physics colliders and rigidbodies, cameras) are removed, Unity
 constraints become VRChat constraints, and textures bigger than 1024 (adjustable) are copied into the same folder with
 the copy capped for Android and iOS. Your original materials and textures are never changed. The copy keeps your
 avatar's blueprint ID, so upload the PC version first, then switch the SDK to Android and upload the copy.
-**Regenerate Quest copy** replaces it, and removing the component deletes it again (the material and texture copies
-stay). It isn't optimized: expect a Very Poor rank until you trim it down.
+**Regenerate Quest copy** replaces it, and removing the component deletes it again, with its folder of material and
+texture copies (moved to the trash). Objects you add to the **Blacklist** are left out of the copy together with all their
+children. It isn't optimized: expect a Very Poor rank until you trim it down.
 
 ## Install
 

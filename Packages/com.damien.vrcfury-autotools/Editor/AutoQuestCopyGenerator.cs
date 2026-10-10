@@ -45,13 +45,21 @@ namespace VRCFuryAutoTools {
             return name == "" ? "Unnamed" : name;
         }
 
-        /// Assets/parts..., creating the folders that are missing.
-        private static string Folder(params string[] parts) {
-            var path = "Assets";
-            foreach (var p in parts) {
-                if (!AssetDatabase.IsValidFolder($"{path}/{p}")) AssetDatabase.CreateFolder(path, p);
-                path += "/" + p;
+        /// Holds one folder per component with its material and texture copies. Nothing outside it is ever deleted.
+        private const string CopiesRoot = "Assets/VRCFuryAutoTools/Quest Copies";
+
+        /// <summary>The component's folder for its copies, made (with a name no other avatar has) if it has none yet.</summary>
+        private static string CopiesFolder(AutoQuestCopy c, GameObject root) {
+            var path = AssetDatabase.GetAssetPath(c.copiesFolder);
+            if (AssetDatabase.IsValidFolder(path)) return path;
+            var parent = "Assets";
+            foreach (var p in CopiesRoot.Split('/').Skip(1)) {
+                if (!AssetDatabase.IsValidFolder($"{parent}/{p}")) AssetDatabase.CreateFolder(parent, p);
+                parent += "/" + p;
             }
+            var name = Path.GetFileName(AssetDatabase.GenerateUniqueAssetPath($"{CopiesRoot}/{FileName(root.name)}"));
+            path = AssetDatabase.GUIDToAssetPath(AssetDatabase.CreateFolder(CopiesRoot, name));
+            c.copiesFolder = AssetDatabase.LoadAssetAtPath<Object>(path);
             return path;
         }
 
@@ -138,19 +146,34 @@ namespace VRCFuryAutoTools {
             return copies.Count;
         }
 
+        /// <summary>The object in <paramref name="copy"/> at the same place as <paramref name="original"/> in <paramref name="root"/>, found by
+        /// sibling index (names can repeat). Null if the original is not below the root.</summary>
+        private static Transform Counterpart(Transform original, Transform root, Transform copy) {
+            var path = new Stack<int>();
+            for (var t = original; t != root; t = t.parent) {
+                if (t == null) return null;
+                path.Push(t.GetSiblingIndex());
+            }
+            foreach (var i in path) copy = copy.GetChild(i);
+            return copy;
+        }
+
         /// <summary>
         /// Deletes the copy, but never the avatar <paramref name="owner"/> (the component's object, null once deleted) sits on,
-        /// in case that got dragged into the field. The material and texture copies stay, so undo can bring the copy back intact.
+        /// in case that got dragged into the field. With a <paramref name="folder"/> its material and texture copies go to the
+        /// trash too (only a folder inside <see cref="CopiesRoot"/>). Undo brings the copy back, but not those files.
         /// </summary>
-        public static void Remove(GameObject copy, Transform owner) {
+        public static void Remove(GameObject copy, Transform owner, Object folder = null) {
             if (copy != null && (owner == null || !owner.IsChildOf(copy.transform))) Undo.DestroyObjectImmediate(copy);
+            var path = folder != null ? AssetDatabase.GetAssetPath(folder) : "";
+            if (path.StartsWith(CopiesRoot + "/") && AssetDatabase.IsValidFolder(path)) AssetDatabase.MoveAssetToTrash(path);
         }
 
         public static void Generate(AutoQuestCopy c) {
             var root = ZeroWeightBoneAnalysis.AvatarRoot(c);
             var group = Undo.GetCurrentGroup();
             Undo.RecordObject(c, "Create Quest copy");
-            Remove(c.questCopy, c.transform);
+            Remove(c.questCopy, c.transform); // the folder stays: its files are overwritten in place below
 
             var copy = Object.Instantiate(root, root.transform.parent);
             Undo.RegisterCreatedObjectUndo(copy, "Create Quest copy");
@@ -158,6 +181,11 @@ namespace VRCFuryAutoTools {
             copy.transform.SetSiblingIndex(root.transform.GetSiblingIndex() + 1);
             copy.transform.position += root.transform.right; // beside the original instead of inside it
             foreach (var k in copy.GetComponentsInChildren<AutoQuestCopy>(true)) Undo.DestroyObjectImmediate(k);
+
+            // all looked up before any is deleted, deleting shifts sibling indices. Never the avatar root itself.
+            var blacklisted = c.blacklist.Where(o => o != null && o != root)
+                .Select(o => Counterpart(o.transform, root.transform, copy.transform)).Where(t => t != null).ToList();
+            foreach (var t in blacklisted) if (t != null) Undo.DestroyObjectImmediate(t.gameObject); // null: went with a blacklisted parent
 
             // joints, spatial audio and flare layers go before the rigidbody, audio source and camera they require
             var removed = copy.GetComponentsInChildren<Component>(true).Where(k => k != null && PcOnly(k))
@@ -169,8 +197,7 @@ namespace VRCFuryAutoTools {
 
             // every material reference gets its own copy, so editing the Quest materials never touches the PC ones.
             // All references, not just renderers, so VRCFury material swaps get the mobile version too.
-            // ponytail: the folder is named after the avatar, so two avatars with the same name share it and overwrite each other's copies.
-            var folder = Folder("VRCFuryAutoTools", "Quest Copies", FileName(root.name));
+            var folder = CopiesFolder(c, root);
             var copies = new Dictionary<Material, Material>();
             var used = new HashSet<string>();
             var converted = 0;
@@ -197,7 +224,7 @@ namespace VRCFuryAutoTools {
             PrefabUtility.RecordPrefabInstancePropertyModifications(c);
             Undo.CollapseUndoOperations(group);
             Debug.Log($"[VRCFuryAutoTools] Made '{copy.name}': {copies.Count} materials copied to {folder} ({converted} switched to mobile shaders), "
-                + $"{removed.Count} PC-only components removed, "
+                + $"{blacklisted.Count} blacklisted objects left out, {removed.Count} PC-only components removed, "
                 + $"{capped} textures copied and capped for Android/iOS. Switch the SDK to Android and upload it.", copy);
         }
     }
