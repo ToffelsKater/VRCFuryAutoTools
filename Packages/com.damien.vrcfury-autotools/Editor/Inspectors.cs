@@ -54,6 +54,23 @@ namespace VRCFuryAutoTools {
 
     [CustomEditor(typeof(AutoQuestCopy))]
     internal class AutoQuestCopyEditor : Editor {
+        private AutoQuestCopy component; // kept so its copy is still known once the component is gone
+        private Transform owner;
+
+        private void OnEnable() {
+            component = (AutoQuestCopy)target;
+            owner = component.transform;
+        }
+
+        // like the collider creator: a destroyed target means the component (or its object) was removed, so the copy goes too.
+        // Not in play mode, where build tools strip the component from the avatar.
+        private void OnDestroy() {
+            if (target != null || ReferenceEquals(component, null) || EditorApplication.isPlayingOrWillChangePlaymode) return;
+            var copy = component.questCopy;
+            var o = owner;
+            EditorApplication.delayCall += () => AutoQuestCopyGenerator.Remove(copy, o);
+        }
+
         public override void OnInspectorGUI() {
             DrawDefaultInspector();
             EditorGUILayout.HelpBox("The copy takes the avatar's blueprint ID, so upload the PC version first and regenerate if it had none yet. "

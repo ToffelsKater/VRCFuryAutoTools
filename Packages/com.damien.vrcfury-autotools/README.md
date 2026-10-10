@@ -42,7 +42,9 @@ materials are never changed, and copies with PC shaders get a VRChat mobile shad
 The parts Quest doesn't allow (lights, cloth, audio, physics colliders and rigidbodies, cameras) are removed, Unity
 constraints become VRChat constraints, and textures bigger than 1024 (adjustable) are copied into the same folder with
 the copy capped for Android and iOS. Your original materials and textures are never changed. The copy keeps your
-avatar's blueprint ID, so upload the PC version first, then switch the SDK to Android and upload the copy. It isn't optimized: expect a Very Poor rank until you trim it down.
+avatar's blueprint ID, so upload the PC version first, then switch the SDK to Android and upload the copy.
+**Regenerate Quest copy** replaces it, and removing the component deletes it again (the material and texture copies
+stay). It isn't optimized: expect a Very Poor rank until you trim it down.
 
 ## Install
 

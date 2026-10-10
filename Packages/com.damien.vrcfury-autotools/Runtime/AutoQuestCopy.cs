@@ -10,7 +10,7 @@ namespace VRCFuryAutoTools {
     public class AutoQuestCopy : MonoBehaviour, IEditorOnly {
         [Tooltip("Textures Android/iOS would import bigger than this are copied, and the copy is capped to this size. The original textures are never changed")]
         public int maxTextureSize = 1024;
-        [Tooltip("The copy this component made. Regenerating replaces it")]
+        [Tooltip("The copy this component made. Regenerating replaces it, removing the component deletes it")]
         public GameObject questCopy;
     }
 }

@@ -138,12 +138,19 @@ namespace VRCFuryAutoTools {
             return copies.Count;
         }
 
+        /// <summary>
+        /// Deletes the copy, but never the avatar <paramref name="owner"/> (the component's object, null once deleted) sits on,
+        /// in case that got dragged into the field. The material and texture copies stay, so undo can bring the copy back intact.
+        /// </summary>
+        public static void Remove(GameObject copy, Transform owner) {
+            if (copy != null && (owner == null || !owner.IsChildOf(copy.transform))) Undo.DestroyObjectImmediate(copy);
+        }
+
         public static void Generate(AutoQuestCopy c) {
             var root = ZeroWeightBoneAnalysis.AvatarRoot(c);
             var group = Undo.GetCurrentGroup();
             Undo.RecordObject(c, "Create Quest copy");
-            // never the avatar this component sits on, in case that got dragged into the field
-            if (c.questCopy != null && !c.transform.IsChildOf(c.questCopy.transform)) Undo.DestroyObjectImmediate(c.questCopy);
+            Remove(c.questCopy, c.transform);
 
             var copy = Object.Instantiate(root, root.transform.parent);
             Undo.RegisterCreatedObjectUndo(copy, "Create Quest copy");
