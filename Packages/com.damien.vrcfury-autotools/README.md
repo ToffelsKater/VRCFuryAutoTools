@@ -39,6 +39,8 @@ Regenerating replaces the old colliders, and removing the component deletes them
 Put this on your avatar and a copy of it appears next to it, changed just enough for the SDK to let you upload it
 for Quest and Android. Every material is copied into its own folder in `Assets/VRCFuryAutoTools/Quest Copies`, so your PC
 materials are never changed, and copies with PC shaders get a VRChat mobile shader that keeps the main texture and color.
+A texture the PC material reads from another UV map (Poiyomi's main texture, lilToon's 2nd or 3rd texture) becomes the
+detail texture, and if that UV map is UV2 or UV3 the copy gets its own mesh with it moved to UV1, the only other one mobile shaders read.
 The parts Quest doesn't allow (lights, cloth, audio, physics colliders and rigidbodies, cameras) are removed, Unity
 constraints become VRChat constraints, and textures bigger than 1024 (adjustable) are copied into the same folder with
 the copy capped for Android and iOS. Your original materials and textures are never changed. If the copy is still over

@@ -31,30 +31,36 @@ namespace VRCFuryAutoTools {
         private static readonly int[] DetailModes = { 0, 1, 1, 2 };
 
         /// <summary>
-        /// The texture property of <paramref name="src"/> that it reads from UV1, with the Toon Standard detail mode that shows it
-        /// the same, or null. Toon Standard reads its main texture from UV0 only: the detail texture is its one color slot with a
-        /// UV choice (UV0 or UV1), so that is where this texture has to go.
+        /// The texture property of <paramref name="src"/> that it reads from UV1, UV2 or UV3, with the Toon Standard detail mode that
+        /// shows it the same and that UV channel, or null. Toon Standard reads its main texture from UV0 only: the detail texture is
+        /// its one color slot with a UV choice (UV0 or UV1), so that is where this texture has to go. For UV2 and UV3 the mesh
+        /// has to follow, see <see cref="MoveUvs"/>.
         /// </summary>
-        // ponytail: one slot, so only the first UV1 texture is kept, without its tint, mask or rotation, and UV2/UV3 have no slot at all.
+        // ponytail: one slot, so only the first such texture is kept, without its tint, mask or rotation.
         // Bake the textures into one on UV0 if that matters.
-        private static (string property, int mode) Uv1Texture(Material src) {
+        private static (string property, int mode, int channel) DetailTexture(Material src) {
             // Poiyomi's main texture. Multiplied over the white main texture it looks the same.
-            if (src.HasProperty("_MainTexUV") && src.GetFloat("_MainTexUV") == 1) return ("_MainTex", 2);
+            var main = src.HasProperty("_MainTexUV") ? (int)src.GetFloat("_MainTexUV") : 0;
+            if (main >= 1 && main <= 3) return ("_MainTex", 2, main); // above 3 are no UV channels (panosphere, world position, ...)
             // lilToon's 2nd and 3rd main texture, blended over the main one
             foreach (var n in new[] { "2nd", "3rd" }) {
                 var p = $"_Main{n}Tex";
-                if (src.HasProperty(p) && src.GetTexture(p) != null && src.GetFloat($"_UseMain{n}Tex") != 0 && src.GetFloat(p + "_UVMode") == 1)
-                    return (p, DetailModes[Mathf.Clamp((int)src.GetFloat(p + "BlendMode"), 0, 3)]);
+                if (!src.HasProperty(p) || src.GetTexture(p) == null || src.GetFloat($"_UseMain{n}Tex") == 0) continue;
+                var uv = (int)src.GetFloat(p + "_UVMode");
+                if (uv >= 1 && uv <= 3) return (p, DetailModes[Mathf.Clamp((int)src.GetFloat(p + "BlendMode"), 0, 3)], uv); // 4 is matcap
             }
-            return (null, 0);
+            return (null, 0, 0);
         }
 
-        /// Main texture, color and one texture on UV1 on a mobile shader. Everything else (normal maps, emission, transparency) is dropped.
-        private static Material Convert(Material src, bool particle) {
+        /// Main texture, color and one texture off UV0 on a mobile shader. Everything else (normal maps, emission, transparency) is
+        /// dropped. <paramref name="channel"/> is the UV channel the source reads that one texture from, 0 without one.
+        private static Material Convert(Material src, bool particle, out int channel) {
             var shader = Shader.Find(particle ? "VRChat/Mobile/Particles/Additive" : "VRChat/Mobile/Toon Standard");
             if (shader == null) shader = Shader.Find("VRChat/Mobile/Toon Lit"); // SDKs before 3.8.1 have no Toon Standard
             var m = new Material(shader) { name = src.name, enableInstancing = true };
-            var (detail, mode) = m.HasProperty("_DetailAlbedoMap") ? Uv1Texture(src) : (null, 0);
+            string detail;
+            int mode;
+            (detail, mode, channel) = m.HasProperty("_DetailAlbedoMap") ? DetailTexture(src) : (null, 0, 0);
             if (detail != null) {
                 m.SetTexture("_DetailAlbedoMap", src.GetTexture(detail));
                 m.SetTextureOffset("_DetailAlbedoMap", src.GetTextureOffset(detail));
@@ -95,22 +101,73 @@ namespace VRCFuryAutoTools {
             return path;
         }
 
-        /// <summary>Saves the material as an asset. On regenerate the file from last time is overwritten in place, so its GUID stays
-        /// and an undone regenerate still finds its materials.</summary>
-        private static Material Save(Material m, string folder, HashSet<string> used) {
-            var name = FileName(m.name);
-            for (var n = 2; !used.Add(name); n++) name = $"{FileName(m.name)} {n}"; // two source materials with one name
-            m.name = name;
-            var path = $"{folder}/{name}.mat";
-            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+        /// <summary>Saves the material or mesh as an asset. On regenerate the file from last time is overwritten in place, so its
+        /// GUID stays and an undone regenerate still finds its materials and meshes.</summary>
+        private static T Save<T>(T asset, string folder, HashSet<string> used, string extension) where T : Object {
+            var name = FileName(asset.name);
+            for (var n = 2; !used.Add(name); n++) name = $"{FileName(asset.name)} {n}"; // two sources with one name
+            asset.name = name;
+            var path = $"{folder}/{name}{extension}";
+            var existing = AssetDatabase.LoadAssetAtPath<T>(path);
             if (existing == null) {
-                AssetDatabase.CreateAsset(m, path);
-                return m;
+                AssetDatabase.CreateAsset(asset, path);
+                return asset;
             }
-            EditorUtility.CopySerialized(m, existing);
-            Object.DestroyImmediate(m);
+            EditorUtility.CopySerialized(asset, existing);
+            Object.DestroyImmediate(asset);
             AssetDatabase.SaveAssetIfDirty(existing);
             return existing;
+        }
+
+        /// <summary>
+        /// Toon Standard has UV0 and UV1 only. A renderer with a material whose detail texture comes from UV2 or UV3
+        /// (<paramref name="channels"/>: Quest material to channel) gets a copy of its mesh, saved in the folder, with that channel
+        /// written into UV1 for the vertices of that material. Nothing else on the copy reads UV1. Returns how many meshes were copied.
+        /// </summary>
+        // ponytail: goes by the materials the renderers have now. One an animation swaps in later lands on a mesh not changed for it.
+        private static int MoveUvs(GameObject copy, Dictionary<Material, int> channels, string folder) {
+            var used = new HashSet<string>();
+            var moved = 0;
+            foreach (var r in copy.GetComponentsInChildren<Renderer>(true)) {
+                var skinned = r as SkinnedMeshRenderer;
+                var filter = r.GetComponent<MeshFilter>();
+                var source = skinned != null ? skinned.sharedMesh : filter != null ? filter.sharedMesh : null;
+                var materials = r.sharedMaterials;
+                if (source == null || !materials.Any(m => m != null && channels.TryGetValue(m, out var k) && k > 1)) continue;
+
+                var mesh = Object.Instantiate(source);
+                mesh.name = source.name;
+                var uv1 = new List<Vector2>();
+                mesh.GetUVs(1, uv1);
+                if (uv1.Count == 0) uv1.AddRange(new Vector2[mesh.vertexCount]);
+                var from = new int[mesh.vertexCount]; // the channel a vertex has in UV1 by now, 0: nobody asked yet
+                bool changed = false, clash = false;
+                for (var i = 0; i < Mathf.Min(materials.Length, mesh.subMeshCount); i++) {
+                    if (materials[i] == null || !channels.TryGetValue(materials[i], out var k)) continue;
+                    var uv = new List<Vector2>();
+                    source.GetUVs(k, uv);
+                    if (uv.Count == 0) continue; // the mesh has no such channel
+                    foreach (var v in mesh.GetIndices(i)) {
+                        clash |= from[v] != 0 && from[v] != k;
+                        from[v] = k;
+                        uv1[v] = uv[v];
+                        changed |= k > 1;
+                    }
+                }
+                if (!changed) {
+                    Object.DestroyImmediate(mesh);
+                    continue;
+                }
+                if (clash)
+                    Debug.LogWarning($"[VRCFuryAutoTools] '{r.name}': two materials share vertices but need different UV channels in UV1. "
+                        + "One of them shows its texture wrong, split those vertices in the mesh.", r);
+                mesh.SetUVs(1, uv1);
+                mesh = Save(mesh, folder, used, ".asset");
+                if (skinned != null) skinned.sharedMesh = mesh;
+                else filter.sharedMesh = mesh;
+                moved++;
+            }
+            return moved;
         }
 
         private static readonly string[] MobilePlatforms = { "Android", "iPhone" };
@@ -317,6 +374,7 @@ namespace VRCFuryAutoTools {
             // All references, not just renderers, so VRCFury material swaps get the mobile version too.
             var folder = CopiesFolder(c, root);
             var copies = new Dictionary<Material, Material>();
+            var channels = new Dictionary<Material, int>(); // Quest material: the UV channel the PC one reads its detail texture from
             var used = new HashSet<string>();
             var converted = 0;
             foreach (var k in copy.GetComponentsInChildren<Component>(true)) {
@@ -329,12 +387,15 @@ namespace VRCFuryAutoTools {
                     if (!copies.TryGetValue(m, out var q)) {
                         var mobile = Mobile(m);
                         if (!mobile) converted++;
-                        copies[m] = q = Save(mobile ? new Material(m) { name = m.name } : Convert(m, particle), folder, used);
+                        var channel = 0;
+                        copies[m] = q = Save(mobile ? new Material(m) { name = m.name } : Convert(m, particle, out channel), folder, used, ".mat");
+                        if (channel > 0) channels[q] = channel;
                     }
                     it.objectReferenceValue = q;
                 }
                 so.ApplyModifiedProperties();
             }
+            var moved = MoveUvs(copy, channels, folder);
 
             var max = Mathf.ClosestPowerOfTwo(Mathf.Clamp(c.maxTextureSize, 32, 8192));
             var capped = CapTextures(copies.Values.Distinct().ToList(), folder, t => max, new HashSet<string>());
@@ -344,7 +405,8 @@ namespace VRCFuryAutoTools {
             Undo.CollapseUndoOperations(group);
             Debug.Log($"[VRCFuryAutoTools] Made '{copy.name}': {copies.Count} materials copied to {folder} ({converted} switched to mobile shaders), "
                 + $"{blacklisted.Count} blacklisted objects/components left out, {removed.Count} PC-only components removed, "
-                + $"{capped} textures copied and capped for Android/iOS. Switch the SDK to Android and upload it.", copy);
+                + $"{capped} textures copied and capped for Android/iOS, {moved} meshes copied to move UV2/UV3 into UV1. "
+                + "Switch the SDK to Android and upload it.", copy);
         }
     }
 
