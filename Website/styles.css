@@ -104,20 +104,36 @@ section + section { border-top: 1px solid var(--border); }
   transition: transform .35s var(--ease), border-color .35s;
 }
 .tile:hover { transform: translateY(-3px); border-color: color-mix(in oklab, var(--accent) 45%, var(--border)); }
-.tile h3 { margin: 16px 0 8px; font-size: 1.08rem; letter-spacing: -.01em; line-height: 1.3; }
+.tile h3 { margin: 0 0 8px; font-size: 1.08rem; letter-spacing: -.01em; line-height: 1.3; }
 .tile p { margin: 0; color: var(--muted); font-size: .95rem; }
-.tile-icon {
-  font-size: 1.4rem; color: var(--accent); width: 44px; height: 44px; display: grid; place-items: center;
-  border-radius: 10px; background: var(--accent-soft);
-}
 .when { margin-top: auto !important; padding-top: 20px; font: 500 .78rem/1 "Geist Mono", monospace !important; color: var(--accent) !important; }
 .tile-feature {
-  grid-column: span 4;
+  grid-column: span 4; display: grid; grid-template-columns: 1fr 1.2fr; gap: 28px; align-items: center;
   background: linear-gradient(140deg, var(--accent-soft), transparent 65%), var(--surface);
   border-color: color-mix(in oklab, var(--accent) 30%, var(--border));
 }
+.tile-text { display: flex; flex-direction: column; height: 100%; }
 .tile-feature h3 { font-size: clamp(1.35rem, 2.4vw, 1.7rem); letter-spacing: -.02em; }
-.tile-feature p { font-size: 1.02rem; max-width: 60ch; }
+
+/* Diagrams: muted = untouched, accent = what the tool adds or changes, dashed = removed */
+.viz { margin: -8px -8px 20px; padding: 14px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); }
+.tile-feature .viz { margin: 0; }
+.viz svg { display: block; width: 100%; height: auto; overflow: visible; }
+.viz text { font: 500 11px "Geist Mono", monospace; fill: var(--muted); }
+.tile-feature .viz text { font-size: 12px; }
+.viz text.at { fill: var(--accent); }
+.viz text.end { text-anchor: end; }
+.viz .s, .viz .a { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.viz .a { stroke: var(--accent); stroke-width: 1.75; }
+.viz .f { fill: var(--surface); }
+.viz .fa { fill: var(--accent-soft); }
+.viz .dot { fill: var(--accent); }
+.viz .dot-s { fill: var(--muted); }
+.viz .dash { stroke-dasharray: 2 5; }
+.viz .gone { opacity: .45; stroke-dasharray: 3 4; }
+.viz .cap, .viz .cap-fill { fill: none; stroke: color-mix(in oklab, var(--accent) 30%, transparent); stroke-width: 14; stroke-linecap: round; }
+.viz .cap.wide { stroke-width: 22; }
+.viz .cap-fill { fill: color-mix(in oklab, var(--accent) 30%, transparent); stroke: none; }
 .tile-tint { background: color-mix(in oklab, var(--surface) 92%, var(--accent)); }
 .tile-dots {
   background:
@@ -174,7 +190,8 @@ section + section { border-top: 1px solid var(--border); }
   .hero-grid { grid-template-columns: 1fr; gap: 40px; }
   .bento { grid-template-columns: repeat(2, 1fr); }
   .tile { grid-column: span 1; }
-  .tile-feature { grid-column: span 2; }
+  .tile-feature { grid-column: span 2; grid-template-columns: 1fr; gap: 0; }
+  .tile-feature .viz { order: -1; margin: -8px -8px 20px; }
 }
 @media (max-width: 640px) {
   .nav-links { gap: 14px; }

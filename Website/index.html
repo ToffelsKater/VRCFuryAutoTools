@@ -60,36 +60,118 @@
       <h2 class="section-title">What's inside</h2>
       <div class="bento">
         <article class="tile tile-feature">
-          <i class="ph ph-device-mobile tile-icon" aria-hidden="true"></i>
-          <h3>Automatic Quest Copy Creator</h3>
-          <p>Add it to an avatar and a copy appears next to it with its own copies of your materials on mobile shaders, PC-only components removed,
-            VRChat constraints and capped copies of big textures. Your originals stay untouched. It keeps the blueprint ID, so switch the SDK to
-            Android and upload it as your Quest version.</p>
-          <p class="when">In editor</p>
+          <div class="tile-text">
+            <h3>Automatic Quest Copy Creator</h3>
+            <p>Add it to an avatar and a copy appears next to it with its own copies of your materials on mobile shaders, PC-only components removed,
+              VRChat constraints and capped copies of big textures. Your originals stay untouched. It keeps the blueprint ID, so switch the SDK to
+              Android and upload it as your Quest version.</p>
+            <p class="when">In editor</p>
+          </div>
+          <figure class="viz">
+            <svg viewBox="0 0 360 180" role="img" aria-label="The PC avatar is copied into an Android version with Toon Standard shaders, textures capped at 1024 and VRC Constraints">
+              <rect class="s f" x="8" y="8" width="140" height="164" rx="10"/>
+              <text x="22" y="30">PC</text>
+              <circle class="s" cx="78" cy="50" r="11"/>
+              <path class="s" d="M58 94q0-28 20-28t20 28z"/>
+              <text x="22" y="118">Any shader</text>
+              <text x="22" y="138">4096 textures</text>
+              <text x="22" y="158">Unity constraint</text>
+              <path class="a" d="M160 90h40m-6-6 6 6-6 6"/>
+              <text class="at" x="166" y="80">copy</text>
+              <rect class="a f" x="212" y="8" width="140" height="164" rx="10"/>
+              <text class="at" x="226" y="30">Android</text>
+              <circle class="a" cx="282" cy="50" r="11"/>
+              <path class="a" d="M262 94q0-28 20-28t20 28z"/>
+              <text class="at" x="226" y="118">Toon Standard</text>
+              <text class="at" x="226" y="138">1024 max</text>
+              <text class="at" x="226" y="158">VRC Constraint</text>
+            </svg>
+          </figure>
         </article>
         <article class="tile">
-          <i class="ph ph-t-shirt tile-icon" aria-hidden="true"></i>
+          <figure class="viz">
+            <svg viewBox="0 0 300 150" role="img" aria-label="Each mesh under the outfit root becomes a toggle in the Outfits/OutfitXY menu">
+              <rect class="s f" x="10" y="10" width="80" height="24" rx="6"/>
+              <text x="22" y="26">Outfit</text>
+              <path class="s" d="M22 34v93M22 59h12M22 93h12M22 127h12"/>
+              <rect class="s f" x="34" y="48" width="56" height="22" rx="6"/><text x="44" y="63">Top</text>
+              <rect class="s f" x="34" y="82" width="56" height="22" rx="6"/><text x="44" y="97">Jeans</text>
+              <rect class="s f" x="34" y="116" width="56" height="22" rx="6"/><text x="44" y="131">Shoes</text>
+              <path class="a dash" d="M98 59h44M98 93h44M98 127h44"/>
+              <path class="a" d="M138 55l4 4-4 4M138 89l4 4-4 4M138 123l4 4-4 4"/>
+              <text x="150" y="26">Outfits/OutfitXY</text>
+              <rect class="s f" x="150" y="48" width="140" height="22" rx="6"/><text x="160" y="63">Top</text>
+              <rect class="a fa" x="256" y="52" width="26" height="14" rx="7"/><circle class="dot" cx="275" cy="59" r="4.5"/>
+              <rect class="s f" x="150" y="82" width="140" height="22" rx="6"/><text x="160" y="97">Jeans</text>
+              <rect class="a fa" x="256" y="86" width="26" height="14" rx="7"/><circle class="dot" cx="275" cy="93" r="4.5"/>
+              <rect class="s f" x="150" y="116" width="140" height="22" rx="6"/><text x="160" y="131">Shoes</text>
+              <rect class="a fa" x="256" y="120" width="26" height="14" rx="7"/><circle class="dot" cx="275" cy="127" r="4.5"/>
+            </svg>
+          </figure>
           <h3>Automatic Outfit Toggle Creator</h3>
           <p>Drop it on an outfit prefab root. Every mesh underneath gets a VRCFury Toggle, laid out in your menu as
             <code>Outfits/OutfitXY/Top</code>, <code>Outfits/OutfitXY/Jeans</code> and so on.</p>
           <p class="when">At build</p>
         </article>
         <article class="tile">
-          <i class="ph ph-bone tile-icon" aria-hidden="true"></i>
+          <figure class="viz">
+            <svg viewBox="0 0 300 150" role="img" aria-label="An armature of 9 bones where 3 have no mesh weights and are removed, leaving 6">
+              <path class="s" d="M150 18 60 68M150 18v50M150 18l90 50M60 68l-25 50M240 68l-25 50"/>
+              <path class="s gone" d="M60 68l25 50M150 68v50M240 68l25 50"/>
+              <circle class="s f" cx="150" cy="18" r="9"/>
+              <circle class="s f" cx="60" cy="68" r="9"/><circle class="s f" cx="150" cy="68" r="9"/><circle class="s f" cx="240" cy="68" r="9"/>
+              <circle class="s f" cx="35" cy="118" r="9"/><circle class="s f" cx="215" cy="118" r="9"/>
+              <circle class="s f gone" cx="85" cy="118" r="9"/><circle class="s f gone" cx="150" cy="118" r="9"/><circle class="s f gone" cx="265" cy="118" r="9"/>
+              <path class="a" d="M81 114l8 8m0-8-8 8M146 114l8 8m0-8-8 8M261 114l8 8m0-8-8 8"/>
+              <text x="166" y="22">Armature</text>
+              <text class="at" x="10" y="148">9 bones &rarr; 6 bones</text>
+            </svg>
+          </figure>
           <h3>Automatic Zero Weight Bone Remover</h3>
           <p>Add it to an avatar or outfit root. Bones no mesh is weighted to are removed at build, cutting bone count
             and improving your performance rating. PhysBones, constraints and animated bones are left alone.</p>
           <p class="when">At build</p>
         </article>
         <article class="tile tile-tint">
-          <i class="ph ph-scissors tile-icon" aria-hidden="true"></i>
+          <figure class="viz">
+            <svg viewBox="0 0 300 150" role="img" aria-label="The core bones from Hips to Head are kept, bones the Body mesh is weighted to are kept, all others are removed">
+              <path class="s" d="M96 87h94M96 135h94"/>
+              <path class="s gone" d="M96 15h94M96 63h49M190 87h45"/>
+              <path class="a" d="M96 15v120"/>
+              <rect class="a f" x="91" y="10" width="10" height="10" rx="2"/><text class="end" x="84" y="19">Head</text>
+              <rect class="a f" x="91" y="34" width="10" height="10" rx="2"/><text class="end" x="84" y="43">Neck</text>
+              <rect class="a f" x="91" y="58" width="10" height="10" rx="2"/><text class="end" x="84" y="67">Upper Chest</text>
+              <rect class="a f" x="91" y="82" width="10" height="10" rx="2"/><text class="end" x="84" y="91">Chest</text>
+              <rect class="a f" x="91" y="106" width="10" height="10" rx="2"/><text class="end" x="84" y="115">Spine</text>
+              <rect class="a f" x="91" y="130" width="10" height="10" rx="2"/><text class="end" x="84" y="139">Hips</text>
+              <circle class="s f" cx="145" cy="87" r="7"/><circle class="s f" cx="190" cy="87" r="7"/>
+              <circle class="s f" cx="145" cy="135" r="7"/><circle class="s f" cx="190" cy="135" r="7"/>
+              <circle class="s f gone" cx="145" cy="15" r="7"/><circle class="s f gone" cx="190" cy="15" r="7"/>
+              <circle class="s f gone" cx="145" cy="63" r="7"/><circle class="s f gone" cx="235" cy="87" r="7"/>
+              <path class="a" d="M142 12l6 6m0-6-6 6M187 12l6 6m0-6-6 6M142 60l6 6m0-6-6 6M232 84l6 6m0-6-6 6"/>
+              <rect class="s f" x="216" y="124" width="76" height="22" rx="11"/><text x="228" y="139">Body mesh</text>
+            </svg>
+          </figure>
           <h3>Automatic Mesh Bone Stripper</h3>
           <p>List the meshes you actually use. Every bone in their armature that they aren't weighted to is removed at
             build. Hips, Spine, Chest, Upper Chest, Neck and Head are kept by default, each with its own toggle.</p>
           <p class="when">At build</p>
         </article>
         <article class="tile tile-dots">
-          <i class="ph ph-cylinder tile-icon" aria-hidden="true"></i>
+          <figure class="viz">
+            <svg viewBox="0 0 300 150" role="img" aria-label="A humanoid with a collider capsule on every limb bone, and one capsule covering a whole tail chain">
+              <circle class="cap-fill" cx="130" cy="22" r="14"/>
+              <path class="cap wide" d="M130 42v46"/>
+              <path class="cap" d="M130 44l-26 24M104 68l-12 26M130 44l26 24M156 68l12 26M130 88l-12 26M118 114l-4 24M130 88l12 26M142 114l4 24"/>
+              <path class="cap wide" d="M208 60l56 36"/>
+              <circle class="s" cx="130" cy="22" r="9"/>
+              <path class="s" d="M130 31v57M130 44l-26 24-12 26M130 44l26 24 12 26M130 88l-12 26-4 24M130 88l12 26 4 24M208 60l28 18 28 18"/>
+              <circle class="dot-s" cx="104" cy="68" r="2.5"/><circle class="dot-s" cx="156" cy="68" r="2.5"/>
+              <circle class="dot-s" cx="118" cy="114" r="2.5"/><circle class="dot-s" cx="142" cy="114" r="2.5"/>
+              <circle class="dot-s" cx="208" cy="60" r="2.5"/><circle class="dot-s" cx="236" cy="78" r="2.5"/><circle class="dot-s" cx="264" cy="96" r="2.5"/>
+              <text x="222" y="126">Tail</text>
+            </svg>
+          </figure>
           <h3>Automatic PhysBone Collider Creator</h3>
           <p>Add it to an avatar and every humanoid bone gets a PhysBone collider sized to its length and the mesh
             around it. On any other bone it covers that bone and all its children. Colliders appear as soon as you
