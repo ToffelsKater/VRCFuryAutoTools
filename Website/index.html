@@ -5,102 +5,145 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ listingInfo.Name | html.escape }}</title>
   <meta name="description" content="{{ listingInfo.Description | html.escape }}">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237c5cff'/%3E%3Cpath d='M9 22V10h6a4 4 0 010 8h-3' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e5532d'/%3E%3Cpath d='M9 22V10h6a4 4 0 010 8h-3' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body data-listing-url="{{ listingInfo.Url }}">
-  <header class="hero">
-    <div class="wrap">
-      <p class="eyebrow">Addon for VRCFury</p>
-      <h1>{{ listingInfo.Name | html.escape }}</h1>
-      {{~ if listingInfo.Description ~}}
-      <p class="lead">{{ listingInfo.Description | html.escape }}</p>
-      {{~ end ~}}
-      <div class="actions">
-        <button class="btn primary" id="addToVcc">Add to VCC</button>
-        <button class="btn" id="copyUrl">Copy listing URL</button>
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <a class="wordmark" href="#top">{{ listingInfo.Name | html.escape }}</a>
+      <div class="nav-links">
+        <a href="#tools">Tools</a>
+        <a href="#install">Install</a>
+        <a href="#packages">Packages</a>
       </div>
-      <code class="url" id="listingUrl">{{ listingInfo.Url }}</code>
+    </div>
+  </nav>
+
+  <header class="hero" id="top">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow" style="--i:0">Addon for VRCFury</p>
+        <h1 style="--i:1">{{ listingInfo.Name | html.escape }}</h1>
+        {{~ if listingInfo.Description ~}}
+        <p class="lead" style="--i:2">{{ listingInfo.Description | html.escape }}</p>
+        {{~ end ~}}
+        <div class="actions" style="--i:3">
+          <button class="btn primary" id="addToVcc"><i class="ph ph-plus-circle" aria-hidden="true"></i>Add to VCC</button>
+          <a class="btn ghost" href="#tools">See the tools<i class="ph ph-arrow-down" aria-hidden="true"></i></a>
+        </div>
+      </div>
+
+      <aside class="install" id="install" style="--i:2" aria-labelledby="installTitle">
+        <h2 id="installTitle">Install</h2>
+        <p class="field-label" id="listingUrlLabel">Listing URL</p>
+        <div class="url-row">
+          <code class="url" id="listingUrl" aria-labelledby="listingUrlLabel">{{ listingInfo.Url }}</code>
+          <button class="btn icon" id="copyUrl" aria-label="Copy listing URL"><i class="ph ph-copy" aria-hidden="true"></i><span>Copy</span></button>
+        </div>
+        <ol class="steps">
+          <li>Click <strong>Add to VCC</strong>, or paste the URL in VCC under Settings &rarr; Packages &rarr; Add Repository.</li>
+          <li>Open your avatar project in VCC and add <strong>{{ listingInfo.Name | html.escape }}</strong> (VRCFury must be installed).</li>
+          <li>In Unity: <em>Add Component &rarr; VRCFury Auto Tools</em>.</li>
+        </ol>
+      </aside>
     </div>
   </header>
 
   <main class="wrap">
-    <section>
-      <h2>What's inside</h2>
-      <div class="cards">
-        <article class="card">
-          <h3>Automatic Outfit Toggle Creator</h3>
-          <p>Drop it on an outfit prefab root. Every mesh underneath gets a VRCFury Toggle, laid out in your menu as
-            <code>Outfits/OutfitXY/Top</code>, <code>Outfits/OutfitXY/Jeans</code> and so on.</p>
-        </article>
-        <article class="card">
-          <h3>Automatic Zero Weight Bone Remover</h3>
-          <p>Add it to an avatar or outfit root. Bones no mesh is weighted to are removed at build, cutting bone count
-            and improving your performance rating. PhysBones, constraints and animated bones are left alone.</p>
-        </article>
-        <article class="card">
-          <h3>Automatic Mesh Bone Stripper</h3>
-          <p>List the meshes you actually use. Every bone in their armature that they aren't weighted to is removed at
-            build. Hips, Spine, Chest, Upper Chest, Neck and Head are kept by default, each with its own toggle.</p>
-        </article>
-        <article class="card">
-          <h3>Automatic PhysBone Collider Creator</h3>
-          <p>Add it to an avatar and every humanoid bone gets a PhysBone collider sized to its length and the mesh
-            around it. On any other bone it covers that bone and all its children. Colliders appear as soon as you
-            add the component, ready for your PhysBones to use.</p>
-        </article>
-        <article class="card">
+    <section id="tools" class="reveal">
+      <h2 class="section-title">What's inside</h2>
+      <div class="bento">
+        <article class="tile tile-feature">
+          <i class="ph ph-device-mobile tile-icon" aria-hidden="true"></i>
           <h3>Automatic Quest Copy Creator</h3>
           <p>Add it to an avatar and a copy appears next to it with its own copies of your materials on mobile shaders, PC-only components removed,
             VRChat constraints and capped copies of big textures. Your originals stay untouched. It keeps the blueprint ID, so switch the SDK to
             Android and upload it as your Quest version.</p>
+          <p class="when">In editor</p>
+        </article>
+        <article class="tile">
+          <i class="ph ph-t-shirt tile-icon" aria-hidden="true"></i>
+          <h3>Automatic Outfit Toggle Creator</h3>
+          <p>Drop it on an outfit prefab root. Every mesh underneath gets a VRCFury Toggle, laid out in your menu as
+            <code>Outfits/OutfitXY/Top</code>, <code>Outfits/OutfitXY/Jeans</code> and so on.</p>
+          <p class="when">At build</p>
+        </article>
+        <article class="tile">
+          <i class="ph ph-bone tile-icon" aria-hidden="true"></i>
+          <h3>Automatic Zero Weight Bone Remover</h3>
+          <p>Add it to an avatar or outfit root. Bones no mesh is weighted to are removed at build, cutting bone count
+            and improving your performance rating. PhysBones, constraints and animated bones are left alone.</p>
+          <p class="when">At build</p>
+        </article>
+        <article class="tile tile-tint">
+          <i class="ph ph-scissors tile-icon" aria-hidden="true"></i>
+          <h3>Automatic Mesh Bone Stripper</h3>
+          <p>List the meshes you actually use. Every bone in their armature that they aren't weighted to is removed at
+            build. Hips, Spine, Chest, Upper Chest, Neck and Head are kept by default, each with its own toggle.</p>
+          <p class="when">At build</p>
+        </article>
+        <article class="tile tile-dots">
+          <i class="ph ph-cylinder tile-icon" aria-hidden="true"></i>
+          <h3>Automatic PhysBone Collider Creator</h3>
+          <p>Add it to an avatar and every humanoid bone gets a PhysBone collider sized to its length and the mesh
+            around it. On any other bone it covers that bone and all its children. Colliders appear as soon as you
+            add the component, ready for your PhysBones to use.</p>
+          <p class="when">In editor</p>
         </article>
       </div>
     </section>
 
-    <section>
-      <h2>Install</h2>
-      <ol>
-        <li>Click <strong>Add to VCC</strong> above, or add the listing URL in VCC under Settings &rarr; Packages &rarr; Add Repository.</li>
-        <li>Open your avatar project in VCC and add <strong>{{ listingInfo.Name | html.escape }}</strong> (VRCFury must be installed).</li>
-        <li>In Unity: <em>Add Component &rarr; VRCFury Auto Tools</em>.</li>
-      </ol>
-    </section>
-
-    <section>
-      <h2>Packages</h2>
-      <input id="search" class="search" type="search" placeholder="Search packages..." aria-label="Search packages">
-      <div id="packageList">
+    <section id="packages" class="reveal">
+      <h2 class="section-title">Packages</h2>
+      <label class="field-label" for="search">Search packages</label>
+      <div class="search-wrap">
+        <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+        <input id="search" class="search" type="search" placeholder="Name or ID" autocomplete="off">
+      </div>
+      <div id="packageList" class="packages">
         {{~ for package in packages ~}}
         <article class="package" data-search="{{ package.DisplayName | html.escape }} {{ package.Name }}">
-          <div class="package-head">
-            <h3>{{ package.DisplayName | html.escape }}</h3>
-            <span class="badge">v{{ package.Version }}</span>
-          </div>
-          {{~ if package.Description ~}}
-          <p>{{ package.Description | html.escape }}</p>
-          {{~ end ~}}
-          <p class="meta"><code>{{ package.Name }}</code>
-            {{~ if package.License ~}} &middot; {{ package.License | html.escape }}{{ end }}
-          </p>
-          {{~ if package.Dependencies.size > 0 ~}}
-          <p class="meta">Requires:
-            {{~ for dependency in package.Dependencies ~}}
-            <span class="badge">{{ dependency.Name }} {{ dependency.Version }}</span>
+          <div class="package-main">
+            <div class="package-head">
+              <h3>{{ package.DisplayName | html.escape }}</h3>
+              <span class="badge">v{{ package.Version }}</span>
+            </div>
+            {{~ if package.Description ~}}
+            <p>{{ package.Description | html.escape }}</p>
             {{~ end ~}}
-          </p>
-          {{~ end ~}}
+          </div>
+          <div class="package-meta">
+            <p class="meta"><code>{{ package.Name }}</code>
+              {{~ if package.License ~}} <span>{{ package.License | html.escape }}</span>{{ end }}
+            </p>
+            {{~ if package.Dependencies.size > 0 ~}}
+            <p class="meta">Requires
+              {{~ for dependency in package.Dependencies ~}}
+              <span class="badge muted">{{ dependency.Name }} {{ dependency.Version }}</span>
+              {{~ end ~}}
+            </p>
+            {{~ end ~}}
+          </div>
         </article>
         {{~ end ~}}
       </div>
+      <p class="empty" id="emptyState" hidden>No packages match that search.</p>
     </section>
   </main>
 
-  <footer class="wrap">
-    {{~ if listingInfo.Author.Name ~}}
-    <p>Published by {{ listingInfo.Author.Name | html.escape }}</p>
-    {{~ end ~}}
-    <p class="meta">Not affiliated with VRChat or VRCFury. Requires <a href="https://vrcfury.com">VRCFury</a> installed separately.</p>
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      {{~ if listingInfo.Author.Name ~}}
+      <p>Published by {{ listingInfo.Author.Name | html.escape }}</p>
+      {{~ end ~}}
+      <p class="meta">Not affiliated with VRChat or VRCFury. Requires <a href="https://vrcfury.com">VRCFury</a> installed separately.</p>
+    </div>
   </footer>
 
   <script src="app.js"></script>
