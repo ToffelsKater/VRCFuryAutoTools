@@ -377,12 +377,21 @@ namespace VRCFuryAutoTools {
             var bones = smr.bones;
             var bind = mesh.bindposes;
             var boneSkin = new Matrix4x4[bones.Length];
-            var bonePos = new Vector3[bones.Length];
+            var segA = new Vector3[bones.Length];
+            var segB = new Vector3[bones.Length];
             for (var i = 0; i < bones.Length; i++) {
-                boneSkin[i] = bones[i] == null || i >= bind.Length
+                var bone = bones[i];
+                boneSkin[i] = bone == null || i >= bind.Length
                     ? smr.transform.localToWorldMatrix
-                    : plan.Motion(bones[i]) * bones[i].localToWorldMatrix * bind[i];
-                bonePos[i] = bones[i] != null ? plan.Motion(bones[i]).MultiplyPoint3x4(bones[i].position) : smr.transform.position;
+                    : plan.Motion(bone) * bone.localToWorldMatrix * bind[i];
+                if (bone == null) {
+                    segA[i] = segB[i] = smr.transform.position;
+                    continue;
+                }
+                // the bone as a segment from its head to the middle of its children, after the bone fit
+                segA[i] = plan.Motion(bone).MultiplyPoint3x4(bone.position);
+                segB[i] = bone.childCount == 0 ? segA[i]
+                    : bone.Cast<Transform>().Aggregate(Vector3.zero, (sum, c) => sum + plan.Motion(c).MultiplyPoint3x4(c.position)) / bone.childCount;
             }
 
             var perVertex = mesh.GetBonesPerVertex();
@@ -392,11 +401,10 @@ namespace VRCFuryAutoTools {
             f.skin = new Matrix4x4[n];
             f.basePos = new Vector3[n];
             f.normals = new Vector3[n];
-            var anchors = new Vector3[n]; // weighted position of the bones under each vertex
+            var anchors = new Vector3[n]; // weighted closest point on the bones under each vertex
             var wi = 0;
             for (var v = 0; v < n; v++) {
                 var m = new Matrix4x4();
-                var anchor = Vector3.zero;
                 var total = 0f;
                 var count = v < perVertex.Length ? perVertex[v] : 0;
                 for (var k = 0; k < count; k++) {
@@ -404,20 +412,22 @@ namespace VRCFuryAutoTools {
                     if (bw.boneIndex >= boneSkin.Length || bw.weight <= 0) continue;
                     var b = boneSkin[bw.boneIndex];
                     for (var e = 0; e < 16; e++) m[e] += b[e] * bw.weight;
-                    anchor += bonePos[bw.boneIndex] * bw.weight;
                     total += bw.weight;
                 }
-                wi += count;
-                if (total <= 0) {
-                    m = smr.transform.localToWorldMatrix;
-                    anchors[v] = smr.transform.position;
-                } else {
-                    for (var e = 0; e < 16; e++) m[e] /= total;
-                    anchors[v] = anchor / total;
-                }
+                if (total <= 0) m = smr.transform.localToWorldMatrix;
+                else for (var e = 0; e < 16; e++) m[e] /= total;
                 f.skin[v] = m;
                 f.basePos[v] = m.MultiplyPoint3x4(verts[v]);
                 f.normals[v] = v < meshNormals.Length ? m.inverse.transpose.MultiplyVector(meshNormals[v]).normalized : Vector3.up;
+
+                var anchor = Vector3.zero;
+                for (var k = 0; k < count; k++) {
+                    var bw = weights[wi + k];
+                    if (bw.boneIndex >= boneSkin.Length || bw.weight <= 0) continue;
+                    anchor += ClosestOnSegment(f.basePos[v], segA[bw.boneIndex], segB[bw.boneIndex]) * bw.weight;
+                }
+                anchors[v] = total > 0 ? anchor / total : smr.transform.position;
+                wi += count;
             }
 
             var size = mesh.bounds.size;
@@ -454,27 +464,38 @@ namespace VRCFuryAutoTools {
             for (var i = 0; i < f.rep.Length; i++) {
                 var v = f.rep[i];
                 var p = f.basePos[v];
-                var dir = f.normals[v];
                 body.Closest(p, out var point, out var normal, out var face);
                 // smooth normals lie at creases (under a breast): the triangle the closest point is on says if p is inside
                 if (Vector3.Dot(point - p, face) > 0 != Vector3.Dot(point - p, normal) > 0) normal = face;
                 f.bodyPoint[i] = point;
                 f.bodyNormal[i] = normal;
-                // Deep inside a bulge (bigger breasts, a belly) the closest body point is a crease or a side, so pushing
-                // there drags the outfit sideways and tears it. Clipping parts go out along the outfit's own normal instead,
-                // when the body's surface is a short, straight way out in that direction, and the normal points away from
-                // the outfit's bones (inner layers of double-sided cloth point inwards).
-                var depth = Vector3.Dot(point - p, normal);
-                if (depth <= 0 || Vector3.Dot(dir, p - anchors[v]) <= 0) continue;
-                if (!body.Raycast(p, dir, Mathf.Min(depth * 4 + 0.015f, MaxPush), out var t, out var exitNormal) || Vector3.Dot(exitNormal, dir) < 0.5f) continue;
-                f.bodyPoint[i] = p + dir * t;
+
+                // The body as seen from the bones under this point: straight out from them to where the body ends.
+                // Neighbouring points get neighbouring rays, so a bulge the outfit is deep inside (bigger breasts, a belly)
+                // pushes it out evenly and the same on both sides, where the nearest body point would be a crease beside it.
+                // Stays with the nearest body point where the bones aren't inside the body, the ray only grazes it, or p is
+                // inside some other body part than the one the ray leaves.
+                var s = anchors[v];
+                var dir = p - s;
+                var r = dir.magnitude;
+                if (r < 1e-4f) continue;
+                dir /= r;
+                if (!body.Raycast(s, dir, r + MaxPush, out var exit, out var exitNormal) || Vector3.Dot(exitNormal, dir) < 0.3f) continue;
+                if (exit < r && Vector3.Dot(point - p, normal) > 0) continue;
+                f.bodyPoint[i] = s + dir * exit;
                 f.bodyNormal[i] = dir;
             }
             return f;
         }
 
-        // ponytail: fixed cap on the push along the outfit's normal; raise it if a bulge sticks out further than this
+        // ponytail: fixed cap on how far past the outfit the body may reach; raise it if a bulge sticks out further than this
         private const float MaxPush = 0.15f;
+
+        private static Vector3 ClosestOnSegment(Vector3 p, Vector3 a, Vector3 b) {
+            var ab = b - a;
+            var len = ab.sqrMagnitude;
+            return len < 1e-12f ? a : a + ab * Mathf.Clamp01(Vector3.Dot(p - a, ab) / len);
+        }
 
         /// <summary>How much of a gap gets closed: automatic for small gaps, painted tight (+1) or loose (-1) overrides it.</summary>
         public static float Tightness(float gapNow, float tightenBelow, float paint) {

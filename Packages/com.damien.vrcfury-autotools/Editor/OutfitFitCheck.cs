@@ -5,13 +5,13 @@ using Object = UnityEngine.Object;
 
 namespace VRCFuryAutoTools {
     /// <summary>
-    /// Self-check for the outfit fitting math on a made-up leg with a bulge on it. Throws on failure.
+    /// Self-check for the outfit fitting math on a made-up leg and breast. Throws on failure.
     /// Unity.exe -batchmode -projectPath &lt;project&gt; -executeMethod VRCFuryAutoTools.OutfitFitCheck.Run -quit
     /// </summary>
     public static class OutfitFitCheck {
         private const float Gap = 0.002f, BodyRadius = 0.06f, BulgeRadius = 0.04f;
-        // a breast-like ball beside the hips, away from the thigh
-        private static readonly Vector3 BulgeCenter = new Vector3(0.3f, 1, 0);
+        // a breast-like ball beside the hips, away from the thigh, with a breast bone inside it towards the back
+        private static readonly Vector3 BulgeCenter = new Vector3(0.3f, 1, 0), BreastBone = new Vector3(0.27f, 1, 0);
 
         public static void Run() {
             Check(new[] { "Upper_Leg.L", "UpperLeg_L", "Left UpperLeg", "leftupperleg" }.All(n => OutfitBonePlan.Canon(n) == "upperleg#l"), "bone names normalise");
@@ -24,6 +24,7 @@ namespace VRCFuryAutoTools {
                 var neck = Bone("Neck", hips, new Vector3(0, 1.5f, 0));
                 var leg = Bone("UpperLeg_L", hips, new Vector3(0.1f, 0.9f, 0));
                 var knee = Bone("LowerLeg_L", leg, new Vector3(0.1f, 0.5f, 0));
+                Bone("Breast", hips, BreastBone);
                 var body = Skinned("Body", avatar, Tube(BodyRadius, 0.95f, 0.45f, 0), new[] { hips });
                 var bulge = Skinned("Bulge", avatar, Sphere(BulgeCenter, BulgeRadius), new[] { hips });
 
@@ -34,10 +35,11 @@ namespace VRCFuryAutoTools {
                 Bone("Neck", oHips, new Vector3(0, 1.5f, 0));
                 var oLeg = Bone("Upper_Leg.L", oHips, new Vector3(0.1f, 0.92f, 0));
                 var oKnee = Bone("Lower_Leg.L", oLeg, new Vector3(0.1f, 0.62f, 0));
+                var oBreast = Bone("Breast", oHips, BreastBone);
                 var pants = Skinned("Pants", outfit, Tube(0.05f, 0.92f, 0.62f, 2), new[] { oLeg, oKnee });
                 var loose = Skinned("Loose", outfit, Tube(0.09f, 0.88f, 0.7f, 0), new[] { oLeg, oKnee });
                 // flat shirt front 1 cm behind the middle of the ball, so its nearest way out is backwards
-                var shirt = Skinned("Shirt", outfit, Sheet(BulgeCenter - new Vector3(0.01f, 0, 0), 0.06f, 13), new[] { oHips });
+                var shirt = Skinned("Shirt", outfit, Sheet(BulgeCenter - new Vector3(0.01f, 0, 0), 0.06f, 13), new[] { oBreast });
 
                 var plan = OutfitBonePlan.Create(outfit, hips, neck, 1);
                 Check(plan.outfitHips == oHips && plan.match.TryGetValue(oLeg, out var m) && m == leg && plan.match[oKnee] == knee, "outfit bones matched");
