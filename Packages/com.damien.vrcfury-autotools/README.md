@@ -1,6 +1,6 @@
 # VRCFury Auto Tools
 
-Five small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
+Six small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
 Add a component, upload your avatar, and it's done.
 
 ## What's inside
@@ -49,6 +49,18 @@ avatar's blueprint ID, so upload the PC version first, then switch the SDK to An
 **Regenerate Quest copy** replaces it, and removing the component deletes it again, with its folder of material and
 texture copies (moved to the trash). Anything you add to the **Blacklist** is left out of the copy: an object together with
 all its children, or a single component (drag in its header) while its object stays. It isn't optimized: expect a Very Poor rank until you trim it down.
+
+### Automatic Outfit Fitter
+Got an outfit that was made for a different avatar? Put this on the outfit and when you upload, its bones are moved
+onto your avatar's, anything that pokes into your body is pushed out, and small gaps are closed so tight clothes stay
+tight. Loose parts like skirts keep their shape. You don't need the avatar the outfit was made for, only your own.
+Click **Edit fit** to see the result in the Scene view and paint fixes on top: **Push / Pull** moves the outfit away
+from or closer to the body, **Smooth** evens out dents, and **Tight / Loose** tells the fitter which parts should hug
+the body and which should keep their shape. Painting is mirrored left and right unless you switch it off. If your
+avatar is a lot slimmer than the one the outfit was made for, paint the baggy parts tight. Your paint is saved on the
+component and your original meshes are never changed. Link the outfit with a VRCFury Armature Link as usual, the
+fitter runs before it. The outfit's bone names need to match your avatar's (differences in case, `_`, `.` and
+left/right spelling are fine).
 
 ## Install
 
