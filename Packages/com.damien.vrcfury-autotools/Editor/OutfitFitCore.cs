@@ -153,11 +153,14 @@ namespace VRCFuryAutoTools {
         private static float Div(float a, float b) => Mathf.Abs(b) > 1e-8f ? a / b : a;
     }
 
-    /// <summary>The avatar's body meshes baked into one world-space surface, for closest-point lookups.</summary>
+    /// <summary>The avatar's body meshes baked into one world-space surface, for closest-point lookups and rays.</summary>
     public class BodySurface {
         private Vector3[] verts, normals;
         private int[] tris, triStart, triList; // vertex -> incident triangles
         private readonly Dictionary<Vector3Int, List<int>> grid = new Dictionary<Vector3Int, List<int>>();
+        private readonly Dictionary<Vector3Int, List<int>> triGrid = new Dictionary<Vector3Int, List<int>>(); // cell -> triangles touching it
+        private readonly List<(float t, bool exit)> hits = new List<(float, bool)>();
+        private readonly HashSet<int> seen = new HashSet<int>();
         private Vector3Int gridMin, gridMax;
         private float cell;
 
@@ -197,6 +200,17 @@ namespace VRCFuryAutoTools {
                 if (!s.grid.TryGetValue(k, out var list)) s.grid[k] = list = new List<int>();
                 list.Add(i);
             }
+            for (var f = 0; f < s.tris.Length / 3; f++) {
+                Vector3 a = s.verts[s.tris[f * 3]], b = s.verts[s.tris[f * 3 + 1]], c = s.verts[s.tris[f * 3 + 2]];
+                Vector3Int lo = s.Key(Vector3.Min(a, Vector3.Min(b, c))), hi = s.Key(Vector3.Max(a, Vector3.Max(b, c)));
+                for (var x = lo.x; x <= hi.x; x++)
+                    for (var y = lo.y; y <= hi.y; y++)
+                        for (var z = lo.z; z <= hi.z; z++) {
+                            var k = new Vector3Int(x, y, z);
+                            if (!s.triGrid.TryGetValue(k, out var list)) s.triGrid[k] = list = new List<int>();
+                            list.Add(f);
+                        }
+            }
             return s;
         }
 
@@ -223,6 +237,69 @@ namespace VRCFuryAutoTools {
                 if (nn.sqrMagnitude > 1e-12f) normal = nn.normalized;
             }
             return true;
+        }
+
+        /// <summary>
+        /// Whether p is inside the body, and how far along the unit ray dir it leaves the body for good. Counts every
+        /// crossing up to the end of the body, so overlapping body meshes and other body parts further along work out.
+        /// Assumes closed meshes: a ray that goes in through an open hole gets the wrong answer.
+        /// </summary>
+        public bool Exit(Vector3 p, Vector3 dir, out float distance) {
+            distance = 0;
+            var at = Key(p);
+            for (var k = 0; k < 3; k++) if (at[k] < gridMin[k] || at[k] > gridMax[k]) return false; // outside the body's bounds
+            var step = Vector3Int.zero;
+            Vector3 next = default, delta = default;
+            for (var k = 0; k < 3; k++) {
+                step[k] = dir[k] > 0 ? 1 : dir[k] < 0 ? -1 : 0;
+                next[k] = step[k] == 0 ? float.PositiveInfinity : ((at[k] + (step[k] > 0 ? 1 : 0)) * cell - p[k]) / dir[k];
+                delta[k] = step[k] == 0 ? float.PositiveInfinity : cell / Mathf.Abs(dir[k]);
+            }
+            hits.Clear();
+            seen.Clear();
+            // walk the grid cells along the ray (Amanatides & Woo) until it leaves the body's bounds
+            while (true) {
+                if (triGrid.TryGetValue(at, out var list))
+                    foreach (var f in list) {
+                        if (!seen.Add(f)) continue;
+                        int a = tris[f * 3], b = tris[f * 3 + 1], c = tris[f * 3 + 2];
+                        if (!RayTriangle(p, dir, verts[a], verts[b], verts[c], out var t, out var u, out var v)) continue;
+                        hits.Add((t, Vector3.Dot(normals[a] * (1 - u - v) + normals[b] * u + normals[c] * v, dir) > 0));
+                    }
+                var axis = next.x < next.y ? (next.x < next.z ? 0 : 2) : (next.y < next.z ? 1 : 2);
+                if (float.IsInfinity(next[axis])) break;
+                at[axis] += step[axis];
+                if (at[axis] < gridMin[axis] || at[axis] > gridMax[axis]) break;
+                next[axis] += delta[axis];
+            }
+            var depth = 0; // how many body meshes p is inside: exits minus entries
+            foreach (var h in hits) depth += h.exit ? 1 : -1;
+            if (depth <= 0) return false;
+            hits.Sort((x, y) => x.t.CompareTo(y.t));
+            foreach (var h in hits) {
+                depth += h.exit ? -1 : 1;
+                if (depth > 0) continue;
+                distance = h.t;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>Möller–Trumbore, both faces. t is along d, u and v are the weights of b and c.</summary>
+        public static bool RayTriangle(Vector3 o, Vector3 d, Vector3 a, Vector3 b, Vector3 c, out float t, out float u, out float v) {
+            t = u = v = 0;
+            Vector3 e1 = b - a, e2 = c - a;
+            var pv = Vector3.Cross(d, e2);
+            var det = Vector3.Dot(e1, pv);
+            if (Mathf.Abs(det) < 1e-12f) return false;
+            var tv = o - a;
+            u = Vector3.Dot(tv, pv) / det;
+            if (u < 0 || u > 1) return false;
+            var qv = Vector3.Cross(tv, e1);
+            v = Vector3.Dot(d, qv) / det;
+            if (v < 0 || u + v > 1) return false;
+            t = Vector3.Dot(e2, qv) / det;
+            return t > 0;
         }
 
         private int NearestVertex(Vector3 p) {
@@ -312,10 +389,13 @@ namespace VRCFuryAutoTools {
             var bones = smr.bones;
             var bind = mesh.bindposes;
             var boneSkin = new Matrix4x4[bones.Length];
-            for (var i = 0; i < bones.Length; i++)
+            var bonePos = new Vector3[bones.Length];
+            for (var i = 0; i < bones.Length; i++) {
                 boneSkin[i] = bones[i] == null || i >= bind.Length
                     ? smr.transform.localToWorldMatrix
                     : plan.Motion(bones[i]) * bones[i].localToWorldMatrix * bind[i];
+                bonePos[i] = bones[i] != null ? plan.Motion(bones[i]).MultiplyPoint3x4(bones[i].position) : smr.transform.position;
+            }
 
             var perVertex = mesh.GetBonesPerVertex();
             var weights = mesh.GetAllBoneWeights();
@@ -324,9 +404,11 @@ namespace VRCFuryAutoTools {
             f.skin = new Matrix4x4[n];
             f.basePos = new Vector3[n];
             f.normals = new Vector3[n];
+            var anchors = new Vector3[n]; // weighted position of the bones under each vertex
             var wi = 0;
             for (var v = 0; v < n; v++) {
                 var m = new Matrix4x4();
+                var anchor = Vector3.zero;
                 var total = 0f;
                 var count = v < perVertex.Length ? perVertex[v] : 0;
                 for (var k = 0; k < count; k++) {
@@ -334,11 +416,17 @@ namespace VRCFuryAutoTools {
                     if (bw.boneIndex >= boneSkin.Length || bw.weight <= 0) continue;
                     var b = boneSkin[bw.boneIndex];
                     for (var e = 0; e < 16; e++) m[e] += b[e] * bw.weight;
+                    anchor += bonePos[bw.boneIndex] * bw.weight;
                     total += bw.weight;
                 }
                 wi += count;
-                if (total <= 0) m = smr.transform.localToWorldMatrix;
-                else for (var e = 0; e < 16; e++) m[e] /= total;
+                if (total <= 0) {
+                    m = smr.transform.localToWorldMatrix;
+                    anchors[v] = smr.transform.position;
+                } else {
+                    for (var e = 0; e < 16; e++) m[e] /= total;
+                    anchors[v] = anchor / total;
+                }
                 f.skin[v] = m;
                 f.basePos[v] = m.MultiplyPoint3x4(verts[v]);
                 f.normals[v] = v < meshNormals.Length ? m.inverse.transpose.MultiplyVector(meshNormals[v]).normalized : Vector3.up;
@@ -375,9 +463,29 @@ namespace VRCFuryAutoTools {
 
             f.bodyPoint = new Vector3[f.rep.Length];
             f.bodyNormal = new Vector3[f.rep.Length];
-            for (var i = 0; i < f.rep.Length; i++) body.Closest(f.basePos[f.rep[i]], out f.bodyPoint[i], out f.bodyNormal[i]);
+            for (var i = 0; i < f.rep.Length; i++) {
+                var v = f.rep[i];
+                var p = f.basePos[v];
+                var dir = f.normals[v];
+                body.Closest(p, out var point, out var normal);
+                f.bodyPoint[i] = point;
+                f.bodyNormal[i] = normal;
+                // The closest body point pushes shallow clipping out well. Deep inside a bulge (bigger breasts, a belly) it
+                // can be a crease or a side that pushes the wrong way or not out at all. There the outfit goes out along its
+                // own normal, if that points away from its bones (inner layers of double-sided cloth point inwards).
+                var depth = Vector3.Dot(point - p, normal);
+                var closestWorks = depth > 0 && (depth < 0.01f || Vector3.Dot(normal, dir) > 0.5f)
+                    && !body.Exit(point + normal * 0.001f, normal, out _);
+                if (closestWorks || Vector3.Dot(dir, p - anchors[v]) <= 0 || !body.Exit(p, dir, out var t) || t > MaxPush) continue;
+                f.bodyPoint[i] = p + dir * t;
+                f.bodyNormal[i] = dir;
+            }
             return f;
         }
+
+        // ponytail: fixed cap so a ray that slips through an open hole in the body can't throw the outfit far; raise it if
+        // something deeper than this has to be pushed out
+        private const float MaxPush = 0.15f;
 
         /// <summary>How much of a gap gets closed: automatic for small gaps, painted tight (+1) or loose (-1) overrides it.</summary>
         public static float Tightness(float gapNow, float tightenBelow, float paint) {
@@ -447,21 +555,10 @@ namespace VRCFuryAutoTools {
             normal = Vector3.up;
             var hit = false;
             for (var t = 0; t < triangles.Length; t += 3) {
-                var a = result[triangles[t]];
-                Vector3 e1 = result[triangles[t + 1]] - a, e2 = result[triangles[t + 2]] - a;
-                var pv = Vector3.Cross(ray.direction, e2);
-                var det = Vector3.Dot(e1, pv);
-                if (Mathf.Abs(det) < 1e-12f) continue;
-                var tv = ray.origin - a;
-                var u = Vector3.Dot(tv, pv) / det;
-                if (u < 0 || u > 1) continue;
-                var qv = Vector3.Cross(tv, e1);
-                var v = Vector3.Dot(ray.direction, qv) / det;
-                if (v < 0 || u + v > 1) continue;
-                var d = Vector3.Dot(e2, qv) / det;
-                if (d <= 0 || d >= distance) continue;
+                Vector3 a = result[triangles[t]], b = result[triangles[t + 1]], c = result[triangles[t + 2]];
+                if (!BodySurface.RayTriangle(ray.origin, ray.direction, a, b, c, out var d, out _, out _) || d >= distance) continue;
                 distance = d;
-                normal = Vector3.Cross(e1, e2).normalized;
+                normal = Vector3.Cross(b - a, c - a).normalized;
                 hit = true;
             }
             if (Vector3.Dot(normal, ray.direction) > 0) normal = -normal;

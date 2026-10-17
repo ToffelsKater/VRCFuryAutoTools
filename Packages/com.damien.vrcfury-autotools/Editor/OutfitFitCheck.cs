@@ -5,11 +5,13 @@ using Object = UnityEngine.Object;
 
 namespace VRCFuryAutoTools {
     /// <summary>
-    /// Self-check for the outfit fitting math on a made-up leg. Throws on failure.
+    /// Self-check for the outfit fitting math on a made-up leg with a bulge on it. Throws on failure.
     /// Unity.exe -batchmode -projectPath &lt;project&gt; -executeMethod VRCFuryAutoTools.OutfitFitCheck.Run -quit
     /// </summary>
     public static class OutfitFitCheck {
-        private const float Gap = 0.002f, BodyRadius = 0.06f;
+        private const float Gap = 0.002f, BodyRadius = 0.06f, BulgeRadius = 0.04f;
+        // sits on the front of the thigh and reaches 4 cm past it, deeper than the pants are inside the thigh
+        private static readonly Vector3 BulgeCenter = new Vector3(0.16f, 0.53f, 0);
 
         public static void Run() {
             Check(new[] { "Upper_Leg.L", "UpperLeg_L", "Left UpperLeg", "leftupperleg" }.All(n => OutfitBonePlan.Canon(n) == "upperleg#l"), "bone names normalise");
@@ -23,6 +25,7 @@ namespace VRCFuryAutoTools {
                 var leg = Bone("UpperLeg_L", hips, new Vector3(0.1f, 0.9f, 0));
                 var knee = Bone("LowerLeg_L", leg, new Vector3(0.1f, 0.5f, 0));
                 var body = Skinned("Body", avatar, Tube(BodyRadius, 0.95f, 0.45f, 0), new[] { hips });
+                var bulge = Skinned("Bulge", avatar, Sphere(BulgeCenter, BulgeRadius), new[] { hips });
 
                 // outfit made for a shorter (0.3) and thinner (0.05) thigh, so it clips into this one
                 var outfit = new GameObject("Outfit").transform;
@@ -37,12 +40,13 @@ namespace VRCFuryAutoTools {
                 var plan = OutfitBonePlan.Create(outfit, hips, neck, 1);
                 Check(plan.outfitHips == oHips && plan.match.TryGetValue(oLeg, out var m) && m == leg && plan.match[oKnee] == knee, "outfit bones matched");
 
-                var surface = BodySurface.Create(new[] { body });
+                var surface = BodySurface.Create(new[] { body, bulge });
                 var fit = OutfitFitMesh.Create(pants, plan, surface);
                 fit.Solve(Gap, 0.01f, 8, true, null, null, null);
                 // the tube is a 16-sided prism, so its flat faces sit at r * cos(pi / 16)
                 var minRadius = BodyRadius * Mathf.Cos(Mathf.PI / 16) + Gap - 0.0005f;
                 Check(fit.result.All(p => Radial(p) >= minRadius), "clipping pushed out");
+                Check(fit.result.All(p => (p - BulgeCenter).magnitude >= BulgeRadius * 0.95f), "pushed out over a bulge deeper than the clipping");
                 var hem = pants.sharedMesh.vertices.Select((v, i) => (v, i)).Where(x => x.v.y < 0.63f).Select(x => fit.result[x.i]).ToList();
                 Check(hem.Count > 0 && hem.All(p => Mathf.Abs(p.y - 0.5f) < 0.005f), "hem follows the longer thigh to the knee");
 
@@ -102,6 +106,26 @@ namespace VRCFuryAutoTools {
                 int a = j * sides + i, b = j * sides + (i + 1) % sides, c = a + sides, d = b + sides;
                 return new[] { a, c, b, b, c, d };
             })).ToArray();
+            return new Mesh { vertices = verts, normals = normals, triangles = tris, boneWeights = bw };
+        }
+
+        /// Closed 16 x 8 UV sphere on the first bone.
+        private static Mesh Sphere(Vector3 center, float r) {
+            const int sides = 16, rings = 9;
+            var verts = new Vector3[sides * rings];
+            var normals = new Vector3[verts.Length];
+            for (var j = 0; j < rings; j++)
+                for (var i = 0; i < sides; i++) {
+                    float a = i * Mathf.PI * 2 / sides, b = j * Mathf.PI / (rings - 1);
+                    var dir = new Vector3(Mathf.Sin(b) * Mathf.Cos(a), Mathf.Cos(b), Mathf.Sin(b) * Mathf.Sin(a));
+                    verts[j * sides + i] = center + dir * r;
+                    normals[j * sides + i] = dir;
+                }
+            var tris = Enumerable.Range(0, rings - 1).SelectMany(j => Enumerable.Range(0, sides).SelectMany(i => {
+                int a = j * sides + i, b = j * sides + (i + 1) % sides, c = a + sides, d = b + sides;
+                return new[] { a, c, b, b, c, d };
+            })).ToArray();
+            var bw = Enumerable.Repeat(new BoneWeight { weight0 = 1 }, verts.Length).ToArray();
             return new Mesh { vertices = verts, normals = normals, triangles = tris, boneWeights = bw };
         }
 
