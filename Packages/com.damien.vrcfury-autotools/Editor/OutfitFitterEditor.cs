@@ -24,6 +24,7 @@ namespace VRCFuryAutoTools {
         private OutfitFitterBuild.Session session;
         private string lastError;
         private readonly List<(OutfitFitMesh fit, GameObject go, Mesh mesh)> previews = new List<(OutfitFitMesh, GameObject, Mesh)>();
+        private readonly List<GameObject> hiddenOthers = new List<GameObject>();
         private Material paintMaterial;
 
         private OutfitFitter Fitter => (OutfitFitter)target;
@@ -86,6 +87,14 @@ namespace VRCFuryAutoTools {
                 paintMaterial.SetInt("_Cull", 0);
                 paintMaterial.SetInt("_ZWrite", 1);
             }
+            // Only the bodies and the outfit stay visible. Things the user already hid stay hidden afterwards.
+            var keep = new HashSet<Renderer>(OutfitFitterBuild.Bodies(Fitter));
+            foreach (var r in FindObjectsOfType<Renderer>(true)) {
+                var go = r.gameObject;
+                if (keep.Contains(r) || go.transform.IsChildOf(Fitter.transform) || SceneVisibilityManager.instance.IsHidden(go)) continue;
+                SceneVisibilityManager.instance.Hide(go, false);
+                hiddenOthers.Add(go);
+            }
             foreach (var f in s.meshes.Where(m => m.renderer.enabled && m.renderer.gameObject.activeInHierarchy)) {
                 var mesh = Instantiate(f.source);
                 mesh.hideFlags = HideFlags.HideAndDontSave;
@@ -106,6 +115,8 @@ namespace VRCFuryAutoTools {
                 DestroyImmediate(p.mesh);
             }
             previews.Clear();
+            foreach (var go in hiddenOthers) if (go != null) SceneVisibilityManager.instance.Show(go, false);
+            hiddenOthers.Clear();
             session = null;
             SceneView.RepaintAll();
         }
