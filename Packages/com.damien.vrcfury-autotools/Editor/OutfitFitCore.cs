@@ -159,6 +159,7 @@ namespace VRCFuryAutoTools {
         private int[] tris, triStart, triList; // vertex -> incident triangles
         private readonly Dictionary<Vector3Int, List<int>> grid = new Dictionary<Vector3Int, List<int>>();
         private readonly Dictionary<Vector3Int, List<int>> triGrid = new Dictionary<Vector3Int, List<int>>(); // cell -> triangles touching it
+        private readonly HashSet<int> seen = new HashSet<int>();
         private Vector3Int gridMin, gridMax;
         private float cell;
 
@@ -242,10 +243,10 @@ namespace VRCFuryAutoTools {
             return true;
         }
 
-        /// <summary>First body surface along the unit ray dir within maxDistance, and the smooth body normal there.</summary>
-        public bool Raycast(Vector3 p, Vector3 dir, float maxDistance, out float distance, out Vector3 normal) {
-            distance = maxDistance;
-            normal = Vector3.zero;
+        /// <summary>Every body surface along the unit ray dir within maxDistance, nearest first, with the smooth body normal there.</summary>
+        public void Crossings(Vector3 p, Vector3 dir, float maxDistance, List<(float t, Vector3 normal)> hits) {
+            hits.Clear();
+            seen.Clear();
             var at = Key(p);
             var step = Vector3Int.zero;
             Vector3 next = default, delta = default;
@@ -254,23 +255,21 @@ namespace VRCFuryAutoTools {
                 next[k] = step[k] == 0 ? float.PositiveInfinity : ((at[k] + (step[k] > 0 ? 1 : 0)) * cell - p[k]) / dir[k];
                 delta[k] = step[k] == 0 ? float.PositiveInfinity : cell / Mathf.Abs(dir[k]);
             }
-            var hit = false;
-            // walk the grid cells along the ray (Amanatides & Woo) until past the nearest hit
-            for (var entered = 0f; entered <= distance;) {
+            // walk the grid cells along the ray (Amanatides & Woo)
+            for (var entered = 0f; entered <= maxDistance;) {
                 if (triGrid.TryGetValue(at, out var list))
                     foreach (var f in list) {
+                        if (!seen.Add(f)) continue;
                         int a = tris[f * 3], b = tris[f * 3 + 1], c = tris[f * 3 + 2];
-                        if (!RayTriangle(p, dir, verts[a], verts[b], verts[c], out var t, out var u, out var v) || t >= distance) continue;
-                        distance = t;
-                        normal = (normals[a] * (1 - u - v) + normals[b] * u + normals[c] * v).normalized;
-                        hit = true;
+                        if (RayTriangle(p, dir, verts[a], verts[b], verts[c], out var t, out var u, out var v) && t <= maxDistance)
+                            hits.Add((t, (normals[a] * (1 - u - v) + normals[b] * u + normals[c] * v).normalized));
                     }
                 var axis = next.x < next.y ? (next.x < next.z ? 0 : 2) : (next.y < next.z ? 1 : 2);
                 entered = next[axis];
                 at[axis] += step[axis];
                 next[axis] += delta[axis];
             }
-            return hit;
+            hits.Sort((x, y) => x.t.CompareTo(y.t));
         }
 
         /// <summary>Möller–Trumbore, both faces. t is along d, u and v are the weights of b and c.</summary>
@@ -461,6 +460,7 @@ namespace VRCFuryAutoTools {
 
             f.bodyPoint = new Vector3[f.rep.Length];
             f.bodyNormal = new Vector3[f.rep.Length];
+            var hits = new List<(float t, Vector3 normal)>();
             for (var i = 0; i < f.rep.Length; i++) {
                 var v = f.rep[i];
                 var p = f.basePos[v];
@@ -470,23 +470,46 @@ namespace VRCFuryAutoTools {
                 f.bodyPoint[i] = point;
                 f.bodyNormal[i] = normal;
 
-                // The body as seen from the bones under this point: straight out from them to where the body ends.
-                // Neighbouring points get neighbouring rays, so a bulge the outfit is deep inside (bigger breasts, a belly)
-                // pushes it out evenly and the same on both sides, where the nearest body point would be a crease beside it.
-                // Stays with the nearest body point where the bones aren't inside the body, the ray only grazes it, or p is
-                // inside some other body part than the one the ray leaves.
+                // The body as seen from the bones under this point: on the ray straight out from them through p, p is
+                // inside where the ray has gone out of the body fewer times than in, and the surface for p is where it
+                // leaves for good (p inside) or last left before p (p outside). Neighbouring points get neighbouring rays,
+                // so a bulge the outfit is deep inside (bigger breasts, a belly) pushes it out evenly and the same on both
+                // sides, where the nearest body point would be a crease beside it. Stays with the nearest body point where
+                // the bones aren't inside the body or nothing is found.
                 var s = anchors[v];
                 var dir = p - s;
                 var r = dir.magnitude;
                 if (r < 1e-4f) continue;
                 dir /= r;
-                if (!body.Raycast(s, dir, r + MaxPush, out var exit, out var exitNormal) || Vector3.Dot(exitNormal, dir) < 0.3f) continue;
-                if (exit < r && Vector3.Dot(point - p, normal) > 0) continue;
-                f.bodyPoint[i] = s + dir * exit;
-                f.bodyNormal[i] = dir;
+                body.Crossings(s, dir, r + MaxPush, hits);
+                if (hits.Count == 0 || Vector3.Dot(hits[0].normal, dir) <= 0) continue;
+                int depth = 1, under = -1, k = 0;
+                for (; k < hits.Count && hits[k].t <= r; k++)
+                    if ((depth += Vector3.Dot(hits[k].normal, dir) > 0 ? -1 : 1) <= 0) under = k;
+                var inside = depth > 0;
+                if (inside) {
+                    under = -1;
+                    for (; k < hits.Count; k++)
+                        if ((depth += Vector3.Dot(hits[k].normal, dir) > 0 ? -1 : 1) <= 0) { under = k; break; }
+                }
+                if (under < 0 || !inside && Vector3.Dot(point - p, normal) > 0) continue;
+                f.bodyPoint[i] = s + dir * hits[under].t;
+                f.bodyNormal[i] = hits[under].normal;
             }
+
+            // A low-poly outfit cuts into a round body between its vertices, by the sag of each edge over the curve:
+            // (n_i - n_j) . (b_i - b_j) / 8 for an edge between body points b with normals n. Keep points out by that.
+            var pad = new float[f.rep.Length];
+            for (var i = 0; i < pad.Length; i++)
+                for (var k = f.adjStart[i]; k < f.adjStart[i + 1]; k++) {
+                    var j = f.adj[k];
+                    pad[i] = Mathf.Max(pad[i], Vector3.Dot(f.bodyNormal[i] - f.bodyNormal[j], f.bodyPoint[i] - f.bodyPoint[j]) / 8);
+                }
+            for (var i = 0; i < pad.Length; i++) f.bodyPoint[i] += f.bodyNormal[i] * Mathf.Min(pad[i], MaxPad);
             return f;
         }
+
+        private const float MaxPad = 0.005f;
 
         // ponytail: fixed cap on how far past the outfit the body may reach; raise it if a bulge sticks out further than this
         private const float MaxPush = 0.15f;
@@ -512,17 +535,21 @@ namespace VRCFuryAutoTools {
             var count = rep.Length;
             // distance along each point's own body normal, smoothed as a number: smoothing the vectors would shrink it on round parts
             var move = new float[count];
+            var floor = new float[count]; // smallest move that keeps the point off the body
             for (var i = 0; i < count; i++) {
                 var d = Vector3.Dot(basePos[rep[i]] - bodyPoint[i], bodyNormal[i]);
                 move[i] = d < gap ? gap - d : -(d - gap) * Tightness(d, tightenBelow, tight != null ? tight[rep[i]] : 0);
+                floor[i] = fixClipping ? gap - d : float.NegativeInfinity;
             }
+            // pushed-out points hold their place while smoothing, so the outfit around them is lifted too and hangs
+            // over a bulge like cloth instead of tucking under it
             var next = new float[count];
             for (var p = 0; p < smoothing; p++) {
                 for (var i = 0; i < count; i++) {
                     var sum = 0f;
                     for (var k = adjStart[i]; k < adjStart[i + 1]; k++) sum += move[adj[k]];
                     var n = adjStart[i + 1] - adjStart[i];
-                    next[i] = n > 0 ? (move[i] + sum / n) * 0.5f : move[i];
+                    next[i] = Mathf.Max(floor[i], n > 0 ? (move[i] + sum / n) * 0.5f : move[i]);
                 }
                 (move, next) = (next, move);
             }
