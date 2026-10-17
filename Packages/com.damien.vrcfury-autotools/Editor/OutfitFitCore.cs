@@ -159,8 +159,6 @@ namespace VRCFuryAutoTools {
         private int[] tris, triStart, triList; // vertex -> incident triangles
         private readonly Dictionary<Vector3Int, List<int>> grid = new Dictionary<Vector3Int, List<int>>();
         private readonly Dictionary<Vector3Int, List<int>> triGrid = new Dictionary<Vector3Int, List<int>>(); // cell -> triangles touching it
-        private readonly List<(float t, bool exit)> hits = new List<(float, bool)>();
-        private readonly HashSet<int> seen = new HashSet<int>();
         private Vector3Int gridMin, gridMax;
         private float cell;
 
@@ -216,14 +214,17 @@ namespace VRCFuryAutoTools {
 
         private Vector3Int Key(Vector3 p) => Vector3Int.FloorToInt(p / cell);
 
-        /// <summary>Closest point on the body and the smooth body normal there. False if there is no body.</summary>
-        public bool Closest(Vector3 p, out Vector3 point, out Vector3 normal) {
+        /// <summary>
+        /// Closest point on the body, the smooth body normal there, and the normal of the triangle it is on (turned to the
+        /// smooth side). False if there is no body.
+        /// </summary>
+        public bool Closest(Vector3 p, out Vector3 point, out Vector3 normal, out Vector3 face) {
             point = p;
-            normal = Vector3.zero;
+            normal = face = Vector3.zero;
             var near = NearestVertex(p);
             if (near < 0) return false;
             point = verts[near];
-            normal = normals[near].normalized;
+            normal = face = normals[near].normalized;
             var best = (point - p).sqrMagnitude;
             for (var k = triStart[near]; k < triStart[near + 1]; k++) {
                 var f = triList[k] * 3;
@@ -235,19 +236,17 @@ namespace VRCFuryAutoTools {
                 point = q;
                 var nn = normals[a] * bary.x + normals[b] * bary.y + normals[c] * bary.z;
                 if (nn.sqrMagnitude > 1e-12f) normal = nn.normalized;
+                var fn = Vector3.Cross(verts[b] - verts[a], verts[c] - verts[a]);
+                if (fn.sqrMagnitude > 1e-20f) face = Vector3.Dot(fn, normal) < 0 ? -fn.normalized : fn.normalized;
             }
             return true;
         }
 
-        /// <summary>
-        /// Whether p is inside the body, and how far along the unit ray dir it leaves the body for good. Counts every
-        /// crossing up to the end of the body, so overlapping body meshes and other body parts further along work out.
-        /// Assumes closed meshes: a ray that goes in through an open hole gets the wrong answer.
-        /// </summary>
-        public bool Exit(Vector3 p, Vector3 dir, out float distance) {
-            distance = 0;
+        /// <summary>First body surface along the unit ray dir within maxDistance, and the smooth body normal there.</summary>
+        public bool Raycast(Vector3 p, Vector3 dir, float maxDistance, out float distance, out Vector3 normal) {
+            distance = maxDistance;
+            normal = Vector3.zero;
             var at = Key(p);
-            for (var k = 0; k < 3; k++) if (at[k] < gridMin[k] || at[k] > gridMax[k]) return false; // outside the body's bounds
             var step = Vector3Int.zero;
             Vector3 next = default, delta = default;
             for (var k = 0; k < 3; k++) {
@@ -255,34 +254,23 @@ namespace VRCFuryAutoTools {
                 next[k] = step[k] == 0 ? float.PositiveInfinity : ((at[k] + (step[k] > 0 ? 1 : 0)) * cell - p[k]) / dir[k];
                 delta[k] = step[k] == 0 ? float.PositiveInfinity : cell / Mathf.Abs(dir[k]);
             }
-            hits.Clear();
-            seen.Clear();
-            // walk the grid cells along the ray (Amanatides & Woo) until it leaves the body's bounds
-            while (true) {
+            var hit = false;
+            // walk the grid cells along the ray (Amanatides & Woo) until past the nearest hit
+            for (var entered = 0f; entered <= distance;) {
                 if (triGrid.TryGetValue(at, out var list))
                     foreach (var f in list) {
-                        if (!seen.Add(f)) continue;
                         int a = tris[f * 3], b = tris[f * 3 + 1], c = tris[f * 3 + 2];
-                        if (!RayTriangle(p, dir, verts[a], verts[b], verts[c], out var t, out var u, out var v)) continue;
-                        hits.Add((t, Vector3.Dot(normals[a] * (1 - u - v) + normals[b] * u + normals[c] * v, dir) > 0));
+                        if (!RayTriangle(p, dir, verts[a], verts[b], verts[c], out var t, out var u, out var v) || t >= distance) continue;
+                        distance = t;
+                        normal = (normals[a] * (1 - u - v) + normals[b] * u + normals[c] * v).normalized;
+                        hit = true;
                     }
                 var axis = next.x < next.y ? (next.x < next.z ? 0 : 2) : (next.y < next.z ? 1 : 2);
-                if (float.IsInfinity(next[axis])) break;
+                entered = next[axis];
                 at[axis] += step[axis];
-                if (at[axis] < gridMin[axis] || at[axis] > gridMax[axis]) break;
                 next[axis] += delta[axis];
             }
-            var depth = 0; // how many body meshes p is inside: exits minus entries
-            foreach (var h in hits) depth += h.exit ? 1 : -1;
-            if (depth <= 0) return false;
-            hits.Sort((x, y) => x.t.CompareTo(y.t));
-            foreach (var h in hits) {
-                depth += h.exit ? -1 : 1;
-                if (depth > 0) continue;
-                distance = h.t;
-                return true;
-            }
-            return false;
+            return hit;
         }
 
         /// <summary>Möller–Trumbore, both faces. t is along d, u and v are the weights of b and c.</summary>
@@ -467,24 +455,25 @@ namespace VRCFuryAutoTools {
                 var v = f.rep[i];
                 var p = f.basePos[v];
                 var dir = f.normals[v];
-                body.Closest(p, out var point, out var normal);
+                body.Closest(p, out var point, out var normal, out var face);
+                // smooth normals lie at creases (under a breast): the triangle the closest point is on says if p is inside
+                if (Vector3.Dot(point - p, face) > 0 != Vector3.Dot(point - p, normal) > 0) normal = face;
                 f.bodyPoint[i] = point;
                 f.bodyNormal[i] = normal;
-                // The closest body point pushes shallow clipping out well. Deep inside a bulge (bigger breasts, a belly) it
-                // can be a crease or a side that pushes the wrong way or not out at all. There the outfit goes out along its
-                // own normal, if that points away from its bones (inner layers of double-sided cloth point inwards).
+                // Deep inside a bulge (bigger breasts, a belly) the closest body point is a crease or a side, so pushing
+                // there drags the outfit sideways and tears it. Clipping parts go out along the outfit's own normal instead,
+                // when the body's surface is a short, straight way out in that direction, and the normal points away from
+                // the outfit's bones (inner layers of double-sided cloth point inwards).
                 var depth = Vector3.Dot(point - p, normal);
-                var closestWorks = depth > 0 && (depth < 0.01f || Vector3.Dot(normal, dir) > 0.5f)
-                    && !body.Exit(point + normal * 0.001f, normal, out _);
-                if (closestWorks || Vector3.Dot(dir, p - anchors[v]) <= 0 || !body.Exit(p, dir, out var t) || t > MaxPush) continue;
+                if (depth <= 0 || Vector3.Dot(dir, p - anchors[v]) <= 0) continue;
+                if (!body.Raycast(p, dir, Mathf.Min(depth * 4 + 0.015f, MaxPush), out var t, out var exitNormal) || Vector3.Dot(exitNormal, dir) < 0.5f) continue;
                 f.bodyPoint[i] = p + dir * t;
                 f.bodyNormal[i] = dir;
             }
             return f;
         }
 
-        // ponytail: fixed cap so a ray that slips through an open hole in the body can't throw the outfit far; raise it if
-        // something deeper than this has to be pushed out
+        // ponytail: fixed cap on the push along the outfit's normal; raise it if a bulge sticks out further than this
         private const float MaxPush = 0.15f;
 
         /// <summary>How much of a gap gets closed: automatic for small gaps, painted tight (+1) or loose (-1) overrides it.</summary>

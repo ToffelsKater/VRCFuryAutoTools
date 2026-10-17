@@ -10,8 +10,8 @@ namespace VRCFuryAutoTools {
     /// </summary>
     public static class OutfitFitCheck {
         private const float Gap = 0.002f, BodyRadius = 0.06f, BulgeRadius = 0.04f;
-        // sits on the front of the thigh and reaches 4 cm past it, deeper than the pants are inside the thigh
-        private static readonly Vector3 BulgeCenter = new Vector3(0.16f, 0.53f, 0);
+        // a breast-like ball beside the hips, away from the thigh
+        private static readonly Vector3 BulgeCenter = new Vector3(0.3f, 1, 0);
 
         public static void Run() {
             Check(new[] { "Upper_Leg.L", "UpperLeg_L", "Left UpperLeg", "leftupperleg" }.All(n => OutfitBonePlan.Canon(n) == "upperleg#l"), "bone names normalise");
@@ -36,6 +36,8 @@ namespace VRCFuryAutoTools {
                 var oKnee = Bone("Lower_Leg.L", oLeg, new Vector3(0.1f, 0.62f, 0));
                 var pants = Skinned("Pants", outfit, Tube(0.05f, 0.92f, 0.62f, 2), new[] { oLeg, oKnee });
                 var loose = Skinned("Loose", outfit, Tube(0.09f, 0.88f, 0.7f, 0), new[] { oLeg, oKnee });
+                // flat shirt front 1 cm behind the middle of the ball, so its nearest way out is backwards
+                var shirt = Skinned("Shirt", outfit, Sheet(BulgeCenter - new Vector3(0.01f, 0, 0), 0.06f, 13), new[] { oHips });
 
                 var plan = OutfitBonePlan.Create(outfit, hips, neck, 1);
                 Check(plan.outfitHips == oHips && plan.match.TryGetValue(oLeg, out var m) && m == leg && plan.match[oKnee] == knee, "outfit bones matched");
@@ -46,9 +48,14 @@ namespace VRCFuryAutoTools {
                 // the tube is a 16-sided prism, so its flat faces sit at r * cos(pi / 16)
                 var minRadius = BodyRadius * Mathf.Cos(Mathf.PI / 16) + Gap - 0.0005f;
                 Check(fit.result.All(p => Radial(p) >= minRadius), "clipping pushed out");
-                Check(fit.result.All(p => (p - BulgeCenter).magnitude >= BulgeRadius * 0.95f), "pushed out over a bulge deeper than the clipping");
                 var hem = pants.sharedMesh.vertices.Select((v, i) => (v, i)).Where(x => x.v.y < 0.63f).Select(x => fit.result[x.i]).ToList();
                 Check(hem.Count > 0 && hem.All(p => Mathf.Abs(p.y - 0.5f) < 0.005f), "hem follows the longer thigh to the knee");
+
+                var sf = OutfitFitMesh.Create(shirt, plan, surface);
+                sf.Solve(Gap, 0.01f, 8, true, null, null, null);
+                // the ball is a 16 x 8 UV sphere, so its faces sit a bit inside r
+                Check(sf.result.All(p => (p - BulgeCenter).magnitude >= BulgeRadius * 0.95f), "shirt pushed out of the ball");
+                Check(sf.result[6 * 13 + 6].x >= BulgeCenter.x + BulgeRadius * 0.95f, "shirt goes over the front of the ball, not behind it");
 
                 var lf = OutfitFitMesh.Create(loose, plan, surface);
                 lf.Solve(Gap, 0.01f, 8, true, null, null, null);
@@ -127,6 +134,20 @@ namespace VRCFuryAutoTools {
             })).ToArray();
             var bw = Enumerable.Repeat(new BoneWeight { weight0 = 1 }, verts.Length).ToArray();
             return new Mesh { vertices = verts, normals = normals, triangles = tris, boneWeights = bw };
+        }
+
+        /// Flat square grid facing +x, n x n vertices, on the first bone.
+        private static Mesh Sheet(Vector3 center, float half, int n) {
+            var verts = new Vector3[n * n];
+            for (var j = 0; j < n; j++)
+                for (var i = 0; i < n; i++)
+                    verts[j * n + i] = center + new Vector3(0, Mathf.Lerp(-half, half, j / (n - 1f)), Mathf.Lerp(-half, half, i / (n - 1f)));
+            var tris = Enumerable.Range(0, n - 1).SelectMany(j => Enumerable.Range(0, n - 1).SelectMany(i => {
+                int a = j * n + i, b = a + 1, c = a + n, d = c + 1;
+                return new[] { a, c, b, b, c, d };
+            })).ToArray();
+            var bw = Enumerable.Repeat(new BoneWeight { weight0 = 1 }, verts.Length).ToArray();
+            return new Mesh { vertices = verts, normals = Enumerable.Repeat(Vector3.right, verts.Length).ToArray(), triangles = tris, boneWeights = bw };
         }
 
         private static SkinnedMeshRenderer Skinned(string name, Transform parent, Mesh mesh, Transform[] bones) {
