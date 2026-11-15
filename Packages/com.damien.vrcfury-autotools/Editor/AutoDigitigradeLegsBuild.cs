@@ -19,8 +19,8 @@ namespace VRCFuryAutoTools {
             public readonly List<Transform> chain = new List<Transform>(); // fake upper leg ... fake foot
             public string error;
 
-            /// A fake leg built like the real one (upper leg, lower leg, foot) copies its rotations in both modes.
-            /// IK only pins the foot, so its knee could swing around the hip-to-foot line and the leg looks twisted.
+            /// A fake leg built like the real one (upper leg, lower leg, foot) gets LimbIK with a bend goal instead of FABRIK:
+            /// FABRIK only pins the foot, so its knee could swing around the hip-to-foot line and the leg looks twisted.
             public bool Humanoid => chain.Count == 3;
         }
 
@@ -118,8 +118,8 @@ namespace VRCFuryAutoTools {
                 }
                 var last = leg.chain.Count - 1;
                 Follow(leg.chain[last], leg.realFoot); // in both modes: FABRIK places the foot but leaves its rotation alone
-                if (ik && !leg.Humanoid) {
-                    SetupIK(leg, root.right, c.rotationLimits);
+                if (ik) {
+                    SetupIK(leg, root, c.rotationLimits);
                     continue;
                 }
                 // every second bone turns with the real upper leg, so the hock stays parallel to the thigh.
@@ -138,7 +138,7 @@ namespace VRCFuryAutoTools {
             constraint.IsActive = true;
         }
 
-        private static void SetupIK(Leg leg, Vector3 avatarRight, bool limits) {
+        private static void SetupIK(Leg leg, Transform root, bool limits) {
             var chain = leg.chain;
             var foot = chain[chain.Count - 1];
             var target = new GameObject(foot.name + " IK Target").transform;
@@ -146,6 +146,21 @@ namespace VRCFuryAutoTools {
             target.SetPositionAndRotation(foot.position, foot.rotation);
 
             // serialized properties instead of the solver's own methods, so nothing of Final IK runs in the editor
+            if (leg.Humanoid) {
+                // the knee aims at a point in front of it that turns with the real shin, so it bends and twists like the real knee
+                var knee = chain[1];
+                var bendGoal = new GameObject(knee.name + " IK Bend Goal").transform;
+                bendGoal.SetParent(leg.realLower, false);
+                bendGoal.position = knee.position + root.forward * Vector3.Distance(chain[0].position, knee.position);
+                var limb = new SerializedObject(chain[0].gameObject.AddComponent(FinalIK("LimbIK")));
+                limb.FindProperty("solver.target").objectReferenceValue = target;
+                for (var i = 0; i < 3; i++) limb.FindProperty($"solver.bone{i + 1}.transform").objectReferenceValue = chain[i];
+                limb.FindProperty("solver.bendModifier").enumValueIndex = 4; // Goal
+                limb.FindProperty("solver.bendGoal").objectReferenceValue = bendGoal;
+                limb.ApplyModifiedPropertiesWithoutUndo();
+                return;
+            }
+
             var solver = new SerializedObject(chain[0].gameObject.AddComponent(FinalIK("FABRIK")));
             solver.FindProperty("solver.target").objectReferenceValue = target;
             var bones = solver.FindProperty("solver.bones");
@@ -161,13 +176,13 @@ namespace VRCFuryAutoTools {
             // the leg bends in one plane: its normal comes from the most bent joint and always points to the avatar's right
             Vector3 Bend(int i) => Vector3.Cross((chain[i].position - chain[i - 1].position).normalized,
                 (chain[i + 1].position - chain[i].position).normalized);
-            var normal = avatarRight;
+            var normal = root.right;
             var sharpest = 0.01f; // straighter than this says nothing about the plane
             for (var i = 1; i < chain.Count - 1; i++) {
                 var bend = Bend(i);
                 if (bend.magnitude <= sharpest) continue;
                 sharpest = bend.magnitude;
-                normal = bend.normalized * Mathf.Sign(Vector3.Dot(bend, avatarRight));
+                normal = bend.normalized * Mathf.Sign(Vector3.Dot(bend, root.right));
             }
 
             for (var i = 1; i < chain.Count - 1; i++) {

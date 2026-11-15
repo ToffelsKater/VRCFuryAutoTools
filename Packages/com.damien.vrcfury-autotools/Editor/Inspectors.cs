@@ -345,8 +345,8 @@ namespace VRCFuryAutoTools {
                     EditorGUILayout.HelpBox($"{leg.side} leg is skipped: {leg.error}.", MessageType.Warning);
                 else
                     EditorGUILayout.HelpBox($"{leg.side} leg, set up at build with "
-                        + (ik && !leg.Humanoid ? "Final IK" + (c.rotationLimits ? " and hinge limits" : "")
-                            : "rotation constraints" + (ik ? " (built like the real leg, so it copies it)" : "")) + ":\n"
+                        + (!ik ? "rotation constraints" : leg.Humanoid ? "Final IK (LimbIK, the knee aims like the real one)"
+                            : "Final IK" + (c.rotationLimits ? " and hinge limits" : "")) + ":\n"
                         + string.Join(" > ", leg.chain.Select(t => t.name)) + $"\nfollows {leg.realUpper.name} > {leg.realFoot.name}", MessageType.Info);
             }
         }
