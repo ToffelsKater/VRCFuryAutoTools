@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using com.vrcfury.api;
+using com.vrcfury.api.Actions;
+using UnityEditor;
 using UnityEngine;
 using VRC.SDKBase.Editor.BuildPipeline;
 
@@ -44,10 +46,39 @@ namespace VRCFuryAutoTools {
                     toggle.SetMenuPath(path);
                     if (c.defaultOn) toggle.SetDefaultOn();
                     if (c.saved) toggle.SetSaved();
-                    toggle.GetActions().AddTurnOn(renderer.gameObject);
+                    var actions = toggle.GetActions();
+                    actions.AddTurnOn(renderer.gameObject);
+                    foreach (var a in c.pieceActions.Where(p => p.piece == renderer).SelectMany(p => p.actions))
+                        Add(actions, a, avatar.transform);
                 }
             }
             return true;
+        }
+
+        private static void Add(FuryActionSet actions, OutfitAction a, Transform avatar) {
+            switch (a.type) {
+                case OutfitActionType.TurnOn:
+                    if (a.obj != null) actions.AddTurnOn(a.obj);
+                    break;
+                case OutfitActionType.TurnOff:
+                    // VRCFury's public API can only turn objects on, so turning off goes through a one-key clip.
+                    // VRCFury loads clips that are not assets (VFClip.Load) and resolves their paths from the avatar root.
+                    if (a.obj == null || !a.obj.transform.IsChildOf(avatar)) break;
+                    var off = new AnimationClip { name = "Turn Off " + a.obj.name };
+                    off.SetCurve(AnimationUtility.CalculateTransformPath(a.obj.transform, avatar), typeof(GameObject),
+                        "m_IsActive", new AnimationCurve(new Keyframe(0, 0)));
+                    actions.AddAnimationClip(off);
+                    break;
+                case OutfitActionType.BlendShape:
+                    if (!string.IsNullOrEmpty(a.name)) actions.AddBlendshape(a.name, a.value, a.renderer);
+                    break;
+                case OutfitActionType.AnimationClip:
+                    if (a.clip != null) actions.AddAnimationClip(a.clip);
+                    break;
+                case OutfitActionType.FxFloat:
+                    if (!string.IsNullOrEmpty(a.name)) actions.AddAap(a.name, a.value);
+                    break;
+            }
         }
     }
 }
