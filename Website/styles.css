@@ -55,7 +55,7 @@ section{padding:64px 0 80px}
 .step .t.in{animation:capIn .45s cubic-bezier(.16,1,.3,1) both}
 @keyframes capIn{from{opacity:0;transform:translateX(-6px)}}
 @media (prefers-reduced-motion:reduce){.spark,.step .t::after{animation:none}}
-@media (max-width:900px){.bento{grid-template-columns:repeat(2,minmax(0,1fr))}.tile{grid-column:span 1}.tile-feature{grid-column:span 2;grid-template-columns:1fr}.tile-feature .viz{order:-1;margin:0 0 18px}}
+@media (max-width:900px){.bento{grid-template-columns:repeat(2,minmax(0,1fr))}.tile{grid-column:span 1}.tile-wide,.tile-feature{grid-column:span 2}.tile-feature{grid-template-columns:1fr}.tile-feature .viz{order:-1;margin:0 0 18px}}
 @media (max-width:640px){.bento{grid-template-columns:1fr}.tile,.tile-feature{grid-column:auto}}
 html{scroll-behavior:smooth;scroll-padding-top:76px}
 :focus-visible{outline:2px solid var(--pink);outline-offset:2px}

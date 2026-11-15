@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ name | html.escape }}</title>
-<meta name="description" content="Quest copies, outfit toggles, bone cleanup and PhysBone colliders for VRCFury avatars, done for you.">
+<meta name="description" content="Quest copies, outfit fitting and toggles, digitigrade legs, bone cleanup and PhysBone colliders for VRCFury avatars, done for you.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='.35' cy='.3' r='.8'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.25' stop-color='%233fe0ff'/%3E%3Cstop offset='1' stop-color='%232f5bff'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='15' fill='url(%23g)'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,7 +30,7 @@
 <div class="hero-copy">
 <p class="eyebrow" style="--i:0">Addon for VRCFury</p>
 <h1 style="--i:1">{{ name | html.escape }}</h1>
-<p class="lead" style="--i:2">Quest copies, outfit toggles, bone cleanup and PhysBone colliders, done for you.</p>
+<p class="lead" style="--i:2">Quest copies, outfit fitting and toggles, digitigrade legs, bone cleanup and PhysBone colliders, done for you.</p>
 <div class="actions" style="--i:3">
 <button class="btn primary" id="addToVcc"><i class="ph ph-plus-circle" aria-hidden="true"></i>Add to VCC</button>
 <a class="btn ghost" href="#tools">See the tools<i class="ph ph-arrow-down" aria-hidden="true"></i></a>
@@ -113,7 +113,7 @@
 <figcaption class="step"><i></i><span class="t"></span></figcaption>
 </figure>
 <h3>Automatic Outfit Toggle Creator</h3>
-<p>Drop it on an outfit prefab root. Every mesh underneath gets a VRCFury Toggle, laid out in your menu as <code>Outfits/OutfitXY/Top</code>, <code>Outfits/OutfitXY/Jeans</code> and so on.</p>
+<p>Drop it on an outfit prefab root. Every mesh underneath gets a VRCFury Toggle, laid out in your menu as <code>Outfits/OutfitXY/Top</code>, <code>Outfits/OutfitXY/Jeans</code> and so on. <strong>Add Action</strong> lets a toggle do more while it is on: switch other objects, set blendshapes, swap materials or change their properties, scale objects and play clips.</p>
 
 </article>
 
@@ -184,6 +184,57 @@
 <h3>Automatic PhysBone Collider Creator</h3>
 <p>Add it to an avatar and every humanoid bone gets a PhysBone collider sized to its length and the mesh around it. On any other bone it covers that bone and all its children. Colliders appear as soon as you add the component, ready for your PhysBones to use.</p>
 
+</article>
+
+<article class="tile tile-wide" data-viz="digi"><div class="titlebar"><span class="lights"><i></i><i></i><i></i></span><span class="when">At build</span></div>
+<figure class="viz">
+<svg viewBox="0 0 300 150" role="img" aria-label="A fake digitigrade leg follows the humanoid leg: its foot is pinned to the real foot, with hinge limits on the knee and hock">
+<path class="s dash" d="M10 20h18"></path><text x="34" y="25">Humanoid leg</text>
+<path data-k="lg" class="s" d="M10 40h18"></path><text data-k="lt" x="34" y="45">Fake leg</text>
+<text data-k="m0" class="at" x="10" y="146">Final IK</text><text data-k="m1" class="at" x="10" y="146">VRC Constraints</text>
+<path class="s" d="M150 136h130"></path>
+<path data-k="rl" class="s dash" d="M190.0 16.0L209.4 72.8L186.0 128.0h12"></path>
+<path data-k="fk" class="s" d="M190.0 16.0L207.8 51.8L170.0 95.8L186.0 128.0h14"></path>
+<circle data-k="hg" class="a" cx="207.8" cy="51.8" r="7"></circle><circle data-k="hg" class="a" cx="170" cy="95.8" r="7"></circle>
+<circle data-k="rj" class="dot-s" cx="209.4" cy="72.8" r="2.5"></circle>
+<circle data-k="fj" class="dot-s" cx="207.8" cy="51.8" r="2.5"></circle><circle data-k="fj" class="dot-s" cx="170" cy="95.8" r="2.5"></circle>
+<circle class="s f" cx="190" cy="16" r="6"></circle>
+<circle data-k="tg" class="a" cx="186" cy="128" r="4"></circle>
+<circle data-k="td" class="dot" cx="186" cy="128" r="3"></circle>
+</svg>
+<figcaption class="step"><i></i><span class="t"></span></figcaption>
+</figure>
+<h3>Automatic Digitigrade Legs</h3>
+<p>For avatars with a second, fake pair of legs the mesh is weighted to. The fake legs are found and bound to the humanoid legs at build: with Final IK and optional hinge limits, or with VRChat rotation constraints if you don't own Final IK.</p>
+
+</article>
+
+<article class="tile tile-feature" data-viz="fit"><div class="titlebar"><span class="lights"><i></i><i></i><i></i></span><span class="when">At build</span></div>
+<div class="tile-text">
+<h3>Automatic Outfit Fitter</h3>
+<p>Put it on an outfit made for a different avatar. At build its bones move onto yours, anything poking into the body is pushed out and small gaps are closed, while loose parts like skirts keep their shape. Click <strong>Edit fit</strong> to see the result in the Scene view and paint fixes on top. Your meshes are never changed.</p>
+
+</div>
+<figure class="viz">
+<svg viewBox="0 0 360 180" role="img" aria-label="An outfit made for another avatar is moved onto this avatar, clipping is pushed out, gaps are closed, the skirt keeps its shape and a brush paints a fix on top">
+<rect data-k="bar" class="bar" x="8" y="26" width="168" height="20" rx="5"></rect>
+<rect data-k="bar" class="bar" x="8" y="54" width="168" height="20" rx="5"></rect>
+<rect data-k="bar" class="bar" x="8" y="82" width="168" height="20" rx="5"></rect>
+<rect data-k="bar" class="bar" x="8" y="110" width="168" height="20" rx="5"></rect>
+<rect data-k="bar" class="bar" x="8" y="138" width="168" height="20" rx="5"></rect>
+<text data-k="fl" x="16" y="41">Bones moved onto yours</text>
+<text data-k="fl" x="16" y="69">Clipping pushed out</text>
+<text data-k="fl" x="16" y="97">Gaps closed</text>
+<text data-k="fl" x="16" y="125">Skirt keeps its shape</text>
+<text data-k="fl" x="16" y="153">Fixes painted on top</text>
+<circle class="s f" cx="265" cy="17" r="10"></circle>
+<path class="s f" d="M273.0 30.0L287.0 35.0Q301.0 40.0 298.0 53.0Q295.0 66.0 291.0 81.0Q287.0 96.0 292.0 110.0Q297.0 124.0 295.0 146.0L293.0 168.0L237.0 168.0L235.0 146.0Q233.0 124.0 238.0 110.0Q243.0 96.0 239.0 81.0Q235.0 66.0 232.0 53.0Q229.0 40.0 243.0 35.0L257.0 30.0Z"></path>
+<path data-k="fo" class="a fa" d="M307.0 33.0L304.0 45.0Q301.0 57.0 306.0 72.0Q311.0 87.0 314.0 101.0Q317.0 115.0 324.0 131.0L331.0 147.0L223.0 147.0L230.0 131.0Q237.0 115.0 240.0 101.0Q243.0 87.0 248.0 72.0Q253.0 57.0 250.0 45.0L247.0 33.0Z"></path>
+<path data-k="sk" class="a" d="M211 156h108"></path>
+<circle data-k="br" class="a" cx="222" cy="126" r="9"></circle>
+</svg>
+<figcaption class="step"><i></i><span class="t"></span></figcaption>
+</figure>
 </article>
 
 </div>

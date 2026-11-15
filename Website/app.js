@@ -44,6 +44,12 @@ document.getElementById('search').addEventListener('input', ({ target: { value }
   const mix = (k, a = 'var(--accent)', b = 'var(--muted)') => `color-mix(in oklab, ${a} ${(cl(k) * 100).toFixed(1)}%, ${b})`;
   const at = (el, cx, cy, s) => el.setAttribute('transform', `translate(${cx} ${cy}) scale(${s})`);
   const op = (el, v) => { el.style.opacity = cl(v).toFixed(3); };
+  const lerp = (a, b, k) => a + (b - a) * k;
+  // Rounded path through points: corners are cut between the midpoints of the segments, the ends are exact.
+  const smooth = p => p.map(([x, y], i) => {
+    const mid = i < p.length - 1 ? `${((x + p[i + 1][0]) / 2).toFixed(1)} ${((y + p[i + 1][1]) / 2).toFixed(1)}` : '';
+    return i === 0 ? `M${x.toFixed(1)} ${y.toFixed(1)}L${mid}` : mid ? `Q${x.toFixed(1)} ${y.toFixed(1)} ${mid}` : `L${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join('');
 
   const tiles = {
     quest: {
@@ -166,6 +172,69 @@ document.getElementById('search').addEventListener('input', ({ target: { value }
         const rad = q('rad')[0];
         rad.textContent = `Radius ×${rs.toFixed(1)}`;
         rad.style.fill = mix(bump(t, 5, .9));
+      }
+    },
+    digi: {
+      dur: 9.4, still: 5.6,
+      steps: [[0, 'Humanoid leg and fake digitigrade leg'], [.5, 'VRChat only moves the humanoid leg'], [2.2, 'At build the fake foot is pinned to the real one'], [3, 'Now the fake leg follows every step'], [4.8, 'Hinge limits keep knee and hock bending right'], [6.8, 'No Final IK? VRC constraints instead'], [8.6, 'Humanoid leg and fake digitigrade leg']],
+      render(t, q) {
+        const lift = a => P(t, a, a + .7, eio) * (1 - P(t, a + .8, a + 1.5, eio));
+        const s = lift(.5) + lift(3) + lift(4.8) + lift(6.9);
+        const bound = P(t, 2.2, 2.6) * (1 - P(t, 8.6, 9.2));
+        const H = [190, 16], rest = [186, 128], F = [186 + 30 * s, 128 - 44 * s];
+        // direction of the first bone of a two-bone leg that bends forward
+        const dir = (f, l1, l2) => {
+          const dx = f[0] - H[0], dy = f[1] - H[1], d = Math.min(Math.hypot(dx, dy), l1 + l2 - .01);
+          const a = Math.atan2(dy, dx) - Math.acos((l1 * l1 + d * d - l2 * l2) / (2 * l1 * d));
+          return [Math.cos(a), Math.sin(a)];
+        };
+        const pt = p => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`;
+        const put = (el, p) => { el.setAttribute('cx', p[0].toFixed(1)); el.setAttribute('cy', p[1].toFixed(1)); };
+
+        const ru = dir(F, 60, 60), rk = [H[0] + 60 * ru[0], H[1] + 60 * ru[1]];
+        q('rl')[0].setAttribute('d', `M${pt(H)}L${pt(rk)}L${pt(F)}h12`);
+        put(q('rj')[0], rk);
+
+        // thigh 40, shin 58, hock 36: the hock stays parallel to the thigh, so it solves like a two-bone leg of 76 and 58
+        const ff = t < 2.2 ? rest : F;
+        const u = dir(ff, 76, 58), knee = [H[0] + 40 * u[0], H[1] + 40 * u[1]], hock = [ff[0] - 36 * u[0], ff[1] - 36 * u[1]];
+        const leg = q('fk')[0];
+        leg.setAttribute('d', `M${pt(H)}L${pt(knee)}L${pt(hock)}L${pt(ff)}h14`);
+        leg.style.stroke = mix(bound);
+        q('lg')[0].style.stroke = mix(bound); q('lt')[0].style.fill = mix(bound);
+        const sw = P(t, 6.8, 7.2), hinge = P(t, 4.8, 5.2) * (1 - sw);
+        [knee, hock].forEach((p, i) => {
+          put(q('fj')[i], p); q('fj')[i].style.fill = mix(bound);
+          put(q('hg')[i], p); op(q('hg')[i], hinge);
+        });
+        const ring = q('tg')[0], rp = P(t, 2.2, 2.9, x => cl(x));
+        put(ring, F); ring.setAttribute('r', (4 + 12 * rp).toFixed(2)); op(ring, rp > 0 && rp < 1 ? 1 - rp : 0);
+        put(q('td')[0], F); op(q('td')[0], bound);
+        op(q('m0')[0], bound * (1 - sw)); op(q('m1')[0], bound * sw);
+      }
+    },
+    fit: {
+      dur: 9.4, still: 7.4,
+      steps: [[0, 'An outfit made for another avatar'], [.8, 'Its bones move onto your avatar'], [2.2, 'Clipping is pushed out of the body'], [3.6, 'Gaps are closed, tight parts stay tight'], [5, 'Loose parts like skirts keep their shape'], [6.2, 'Edit fit: paint fixes on top'], [8.4, 'An outfit made for another avatar']],
+      render(t, q) {
+        const r = 1 - P(t, 8.4, 9, eio);
+        const move = P(t, .8, 1.8, eio) * r, push = P(t, 2.2, 3.2, eio) * r, close = P(t, 3.6, 4.6, eio) * r;
+        const paint = P(t, 6.6, 7.8, x => cl(x));
+        // half widths at shoulder, chest, waist, hip and hem: the hem never changes
+        const w = [lerp(30, 37, push), lerp(24, 33, push), lerp(34, 25, close), lerp(40, 37, close), 54];
+        const ys = [42, 66, 96, 124, 156];
+        const ox = 12 * (1 - move), oy = -9 * (1 - move);
+        // the brush pushes the left waist out a little
+        const side = d => ys.map((y, i) => [265 + ox + d * (w[i] + (d < 0 && i === 2 ? 4 * P(t, 7, 7.6) * r : 0)), y + oy]);
+        q('fo')[0].setAttribute('d', smooth(side(1)) + smooth(side(-1).reverse()).replace('M', 'L') + 'Z');
+        [.8, 2.2, 3.6, 5, 6.2].forEach((a, i) => {
+          q('fl')[i].style.fill = mix(P(t, a, a + .3) * r);
+          op(q('bar')[i], bump(t, a + .25, .6));
+        });
+        op(q('sk')[0], bump(t, 5.6, .7));
+        const brush = q('br')[0];
+        brush.setAttribute('cx', lerp(222, 240, paint).toFixed(1)); brush.setAttribute('cy', lerp(126, 84, paint).toFixed(1));
+        op(brush, Math.min(P(t, 6.2, 6.6), 1 - P(t, 7.9, 8.3)));
       }
     }
   };
