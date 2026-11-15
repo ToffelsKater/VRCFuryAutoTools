@@ -7,7 +7,7 @@ using VRC.SDKBase;
 namespace VRCFuryAutoTools {
     [CustomEditor(typeof(AutoOutfitToggles))]
     internal class AutoOutfitTogglesEditor : Editor {
-        private static readonly string[] ActionLabels = { "Turn On", "Turn Off", "BlendShape", "Animation Clip", "Set an FX Float" };
+        private static readonly string[] ActionLabels = { "Turn On", "Turn Off", "BlendShape", "Animation Clip", "Set an FX Float", "Material Swap" };
 
         public override void OnInspectorGUI() {
             DrawDefaultInspector();
@@ -87,7 +87,11 @@ namespace VRCFuryAutoTools {
                     Undo.RecordObject(c, "Add outfit action");
                     var piece = c.pieceActions.Find(p => p.piece == renderer);
                     if (piece == null) c.pieceActions.Add(piece = new OutfitPieceActions { piece = renderer });
-                    piece.actions.Add(new OutfitAction { type = type, value = type == OutfitActionType.BlendShape ? 100 : 1 });
+                    piece.actions.Add(new OutfitAction {
+                        type = type,
+                        value = type == OutfitActionType.BlendShape ? 100 : 1,
+                        renderer = type == OutfitActionType.MaterialSwap ? renderer : null, // most swaps recolor the piece itself
+                    });
                     EditorUtility.SetDirty(c);
                 });
             }
@@ -137,6 +141,19 @@ namespace VRCFuryAutoTools {
                 case OutfitActionType.FxFloat:
                     Field("name", "FX parameter name");
                     Field("value", "Value while the toggle is on", GUILayout.Width(45));
+                    break;
+                case OutfitActionType.MaterialSwap:
+                    Field("renderer", "Mesh whose material is swapped");
+                    var swapped = a.FindPropertyRelative("renderer").objectReferenceValue as Renderer;
+                    var slot = a.FindPropertyRelative("materialIndex");
+                    var slots = swapped == null ? new[] { "Slot 0" } : swapped.sharedMaterials
+                        .Select((m, i) => $"{i}: {(m != null ? m.name.Replace('/', '-') : "None")}").ToArray();
+                    EditorGUI.BeginChangeCheck();
+                    var picked = EditorGUILayout.Popup(slot.intValue, slots, GUILayout.Width(100));
+                    if (EditorGUI.EndChangeCheck()) slot.intValue = picked;
+                    Field("material", "Material shown in that slot while the toggle is on");
+                    if (swapped != null && slot.intValue >= slots.Length)
+                        warning = $"{swapped.name} has no material slot {slot.intValue}. This action will do nothing.";
                     break;
             }
             var remove = GUILayout.Button("x", GUILayout.Width(20));

@@ -69,6 +69,16 @@ namespace VRCFuryAutoTools {
                         "m_IsActive", new AnimationCurve(new Keyframe(0, 0)));
                     actions.AddAnimationClip(off);
                     break;
+                case OutfitActionType.MaterialSwap:
+                    // not in the public API either: same one-key clip, on the binding VRCFury's own Material Swap uses
+                    if (a.renderer == null || a.material == null || !a.renderer.transform.IsChildOf(avatar)) break;
+                    var swap = new AnimationClip { name = "Material Swap " + a.renderer.name };
+                    AnimationUtility.SetObjectReferenceCurve(swap,
+                        EditorCurveBinding.PPtrCurve(AnimationUtility.CalculateTransformPath(a.renderer.transform, avatar),
+                            a.renderer.GetType(), $"m_Materials.Array.data[{a.materialIndex}]"),
+                        new[] { new ObjectReferenceKeyframe { time = 0, value = a.material } });
+                    actions.AddAnimationClip(swap);
+                    break;
                 case OutfitActionType.BlendShape:
                     if (!string.IsNullOrEmpty(a.name)) actions.AddBlendshape(a.name, a.value, a.renderer);
                     break;

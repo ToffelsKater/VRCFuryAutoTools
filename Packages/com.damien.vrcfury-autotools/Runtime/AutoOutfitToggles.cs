@@ -26,7 +26,8 @@ namespace VRCFuryAutoTools {
         public List<OutfitPieceActions> pieceActions = new List<OutfitPieceActions>();
     }
 
-    public enum OutfitActionType { TurnOn, TurnOff, BlendShape, AnimationClip, FxFloat }
+    // saved by number: only add new types at the end
+    public enum OutfitActionType { TurnOn, TurnOff, BlendShape, AnimationClip, FxFloat, MaterialSwap }
 
     /// <summary>One extra action of a piece's toggle: applied while the toggle is on, back to the resting state when off.</summary>
     [Serializable]
@@ -35,8 +36,10 @@ namespace VRCFuryAutoTools {
         public GameObject obj;        // TurnOn, TurnOff
         public string name = "";      // BlendShape, FxFloat
         public float value;           // BlendShape (0-100), FxFloat
-        public Renderer renderer;     // BlendShape; none = every mesh that has it
+        public Renderer renderer;     // BlendShape; none = every mesh that has it. MaterialSwap: mesh to change
         public AnimationClip clip;    // AnimationClip
+        public int materialIndex;     // MaterialSwap: material slot of the renderer
+        public Material material;     // MaterialSwap: material shown while the toggle is on
     }
 
     [Serializable]
