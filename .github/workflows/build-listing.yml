@@ -10,8 +10,8 @@ on:
     workflows: [Build Release]
     types:
       - completed
-  release:
-     types: [published, created, edited, unpublished, deleted, released]
+  # No release trigger: those runs start on the tag, which the github-pages environment refuses to deploy,
+  # and they cancel the run above through the shared concurrency group.
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
