@@ -55,6 +55,10 @@ namespace VRCFuryAutoTools {
             return true;
         }
 
+        /// <summary>One constant key on a property of an object under the avatar.</summary>
+        private static void Set(AnimationClip clip, Transform target, Transform avatar, Type type, string property, float value) =>
+            clip.SetCurve(AnimationUtility.CalculateTransformPath(target, avatar), type, property, new AnimationCurve(new Keyframe(0, value)));
+
         private static void Add(FuryActionSet actions, OutfitAction a, Transform avatar) {
             switch (a.type) {
                 case OutfitActionType.TurnOn:
@@ -65,8 +69,7 @@ namespace VRCFuryAutoTools {
                     // VRCFury loads clips that are not assets (VFClip.Load) and resolves their paths from the avatar root.
                     if (a.obj == null || !a.obj.transform.IsChildOf(avatar)) break;
                     var off = new AnimationClip { name = "Turn Off " + a.obj.name };
-                    off.SetCurve(AnimationUtility.CalculateTransformPath(a.obj.transform, avatar), typeof(GameObject),
-                        "m_IsActive", new AnimationCurve(new Keyframe(0, 0)));
+                    Set(off, a.obj.transform, avatar, typeof(GameObject), "m_IsActive", 0);
                     actions.AddAnimationClip(off);
                     break;
                 case OutfitActionType.MaterialSwap:
@@ -78,6 +81,41 @@ namespace VRCFuryAutoTools {
                             a.renderer.GetType(), $"m_Materials.Array.data[{a.materialIndex}]"),
                         new[] { new ObjectReferenceKeyframe { time = 0, value = a.material } });
                     actions.AddAnimationClip(swap);
+                    break;
+                case OutfitActionType.MaterialProperty:
+                    // like VRCFury's Material Property: "material.<name>" curves, one per channel. A name with a dot would
+                    // animate one channel of a bundle, which breaks it.
+                    if (string.IsNullOrEmpty(a.name) || a.name.Contains(".")) break;
+                    var meshes = a.renderer != null
+                        ? new[] { a.renderer }
+                        : avatar.GetComponentsInChildren<Renderer>(true).Where(x => x.sharedMaterials.Any(m => m != null && m.HasProperty(a.name))).ToArray();
+                    var property = new AnimationClip { name = "Material Property " + a.name };
+                    foreach (var mesh in meshes) {
+                        if (!mesh.transform.IsChildOf(avatar)) continue;
+                        void Channel(string suffix, float v) => Set(property, mesh.transform, avatar, mesh.GetType(), $"material.{a.name}{suffix}", v);
+                        switch (a.propertyType) {
+                            case OutfitPropertyType.Float:
+                                Channel("", a.value);
+                                break;
+                            case OutfitPropertyType.Color:
+                                Channel(".r", a.color.r); Channel(".g", a.color.g); Channel(".b", a.color.b); Channel(".a", a.color.a);
+                                break;
+                            case OutfitPropertyType.Vector:
+                                Channel(".x", a.vector.x); Channel(".y", a.vector.y); Channel(".z", a.vector.z); Channel(".w", a.vector.w);
+                                break;
+                        }
+                    }
+                    actions.AddAnimationClip(property);
+                    break;
+                case OutfitActionType.Scale:
+                    // like VRCFury's Scale: the object's current scale times the multiplier
+                    if (a.obj == null || !a.obj.transform.IsChildOf(avatar)) break;
+                    var scale = new AnimationClip { name = "Scale " + a.obj.name };
+                    var to = a.obj.transform.localScale * a.value;
+                    Set(scale, a.obj.transform, avatar, typeof(Transform), "m_LocalScale.x", to.x);
+                    Set(scale, a.obj.transform, avatar, typeof(Transform), "m_LocalScale.y", to.y);
+                    Set(scale, a.obj.transform, avatar, typeof(Transform), "m_LocalScale.z", to.z);
+                    actions.AddAnimationClip(scale);
                     break;
                 case OutfitActionType.BlendShape:
                     if (!string.IsNullOrEmpty(a.name)) actions.AddBlendshape(a.name, a.value, a.renderer);

@@ -1,13 +1,49 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEngine;
+using UnityEngine.Rendering;
 using VRC.SDKBase;
 
 namespace VRCFuryAutoTools {
     [CustomEditor(typeof(AutoOutfitToggles))]
     internal class AutoOutfitTogglesEditor : Editor {
-        private static readonly string[] ActionLabels = { "Turn On", "Turn Off", "BlendShape", "Animation Clip", "Set an FX Float", "Material Swap" };
+        private static readonly string[] ActionLabels = { "Turn On", "Turn Off", "BlendShape", "Animation Clip", "Set an FX Float", "Material Swap", "Material Property", "Scale" };
+
+        /// <summary>Searchable pick list: big shaders have thousands of properties, too many for a plain menu.</summary>
+        private class PickDropdown : AdvancedDropdown {
+            private readonly string title;
+            private readonly string[] items;
+            private readonly Action<int> picked;
+
+            public PickDropdown(string title, string[] items, Action<int> picked) : base(new AdvancedDropdownState()) {
+                this.title = title;
+                this.items = items;
+                this.picked = picked;
+                minimumSize = new Vector2(280, 320);
+            }
+
+            protected override AdvancedDropdownItem BuildRoot() {
+                var root = new AdvancedDropdownItem(title);
+                for (var i = 0; i < items.Length; i++) root.AddChild(new AdvancedDropdownItem(items[i]) { id = i });
+                return root;
+            }
+
+            protected override void ItemSelected(AdvancedDropdownItem item) => picked(item.id);
+        }
+
+        /// <summary>"Pick" button that opens the list under itself.</summary>
+        private static void PickButton(string tooltip, string title, Func<string[]> items, Action<int> picked) {
+            var clicked = EditorGUILayout.DropdownButton(new GUIContent("Pick", tooltip), FocusType.Passive, GUILayout.Width(45));
+            if (clicked) new PickDropdown(title, items(), picked).Show(GUILayoutUtility.GetLastRect());
+        }
+
+        /// <summary>Materials of one mesh, or of every mesh on the avatar (the outfit alone when it is not on an avatar).</summary>
+        private static IEnumerable<Material> Materials(AutoOutfitToggles c, Renderer only) =>
+            (only != null ? new[] { only } : (AvatarRoot(c) ?? c.transform).GetComponentsInChildren<Renderer>(true))
+                .SelectMany(r => r.sharedMaterials).Where(m => m != null);
 
         public override void OnInspectorGUI() {
             DrawDefaultInspector();
@@ -90,7 +126,8 @@ namespace VRCFuryAutoTools {
                     piece.actions.Add(new OutfitAction {
                         type = type,
                         value = type == OutfitActionType.BlendShape ? 100 : 1,
-                        renderer = type == OutfitActionType.MaterialSwap ? renderer : null, // most swaps recolor the piece itself
+                        // most material changes recolor the piece itself
+                        renderer = type == OutfitActionType.MaterialSwap || type == OutfitActionType.MaterialProperty ? renderer : null,
                     });
                     EditorUtility.SetDirty(c);
                 });
@@ -116,19 +153,13 @@ namespace VRCFuryAutoTools {
                     var shape = a.FindPropertyRelative("name");
                     var only = a.FindPropertyRelative("renderer").objectReferenceValue as Renderer;
                     Field("name", "Blendshape name");
-                    if (EditorGUILayout.DropdownButton(new GUIContent("Pick", "Choose from the blendshapes that exist"), FocusType.Passive, GUILayout.Width(45))) {
-                        var menu = new GenericMenu();
-                        var path = shape.propertyPath;
-                        foreach (var s in Shapes(c, only).Distinct()) {
-                            menu.AddItem(new GUIContent(s), s == shape.stringValue, () => {
-                                serializedObject.Update();
-                                serializedObject.FindProperty(path).stringValue = s;
-                                serializedObject.ApplyModifiedProperties();
-                            });
-                        }
-                        if (menu.GetItemCount() == 0) menu.AddDisabledItem(new GUIContent("No blendshapes found"));
-                        menu.ShowAsContext();
-                    }
+                    var shapePath = shape.propertyPath;
+                    string[] shapes = null;
+                    PickButton("Choose from the blendshapes that exist", "Blendshapes", () => shapes = Shapes(c, only).Distinct().ToArray(), i => {
+                        serializedObject.Update();
+                        serializedObject.FindProperty(shapePath).stringValue = shapes[i];
+                        serializedObject.ApplyModifiedProperties();
+                    });
                     Field("value", "Blendshape value, 0-100", GUILayout.Width(45));
                     Field("renderer", "Mesh to change. None = every mesh on the avatar that has this blendshape.", GUILayout.Width(110));
                     // off an avatar the body's blendshapes are out of reach, so only a chosen mesh can be checked there
@@ -155,9 +186,70 @@ namespace VRCFuryAutoTools {
                     if (swapped != null && slot.intValue >= slots.Length)
                         warning = $"{swapped.name} has no material slot {slot.intValue}. This action will do nothing.";
                     break;
+                case OutfitActionType.MaterialProperty:
+                    var property = a.FindPropertyRelative("name");
+                    var mesh = a.FindPropertyRelative("renderer").objectReferenceValue as Renderer;
+                    Field("renderer", "Mesh to change. None = every mesh on the avatar with a material that has this property.", GUILayout.Width(110));
+                    Field("name", "Shader property name, like _Color");
+                    var actionPath = a.propertyPath;
+                    var found = new List<(string name, OutfitPropertyType type)>();
+                    PickButton("Choose from the properties of the materials", "Material properties", () => {
+                        var labels = new List<string>();
+                        foreach (var shader in Materials(c, mesh).Select(m => m.shader).Distinct()) {
+                            for (var i = 0; i < shader.GetPropertyCount(); i++) {
+                                var kind = shader.GetPropertyType(i);
+                                var name = shader.GetPropertyName(i);
+                                if (kind == ShaderPropertyType.Texture || found.Any(f => f.name == name)) continue;
+                                found.Add((name, kind == ShaderPropertyType.Color ? OutfitPropertyType.Color
+                                    : kind == ShaderPropertyType.Vector ? OutfitPropertyType.Vector : OutfitPropertyType.Float));
+                                labels.Add($"{shader.GetPropertyDescription(i)} ({name})");
+                            }
+                        }
+                        return labels.ToArray();
+                    }, i => {
+                        serializedObject.Update();
+                        serializedObject.FindProperty(actionPath + ".name").stringValue = found[i].name;
+                        serializedObject.FindProperty(actionPath + ".propertyType").enumValueIndex = (int)found[i].type;
+                        serializedObject.ApplyModifiedProperties();
+                    });
+                    if (property.stringValue.Contains("."))
+                        warning = "Use the property name without a channel like .r or .x. This action will do nothing.";
+                    else if (property.stringValue != "" && (mesh != null || AvatarRoot(c) != null) && !Materials(c, mesh).Any(m => m.HasProperty(property.stringValue)))
+                        warning = $"No material on {(mesh != null ? mesh.name : "this avatar")} has a property named \"{property.stringValue}\". This action will do nothing.";
+                    break;
+                case OutfitActionType.Scale:
+                    Field("obj", "Object to scale");
+                    EditorGUILayout.LabelField(new GUIContent("x", "Multiplier of the object's current scale"), GUILayout.Width(10));
+                    Field("value", "Multiplier of the object's current scale while the toggle is on", GUILayout.Width(45));
+                    break;
             }
             var remove = GUILayout.Button("x", GUILayout.Width(20));
             EditorGUILayout.EndHorizontal();
+            if (type == OutfitActionType.MaterialProperty) {
+                // second row: the value, in the shape the property has
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Space(104);
+                var kind = a.FindPropertyRelative("propertyType");
+                EditorGUILayout.PropertyField(kind, GUIContent.none, GUILayout.Width(110));
+                switch ((OutfitPropertyType)kind.enumValueIndex) {
+                    case OutfitPropertyType.Float:
+                        Field("value", "Value while the toggle is on");
+                        break;
+                    case OutfitPropertyType.Color:
+                        var color = a.FindPropertyRelative("color");
+                        EditorGUI.BeginChangeCheck();
+                        var hdr = EditorGUILayout.ColorField(GUIContent.none, color.colorValue, true, true, true); // HDR for emission
+                        if (EditorGUI.EndChangeCheck()) color.colorValue = hdr;
+                        break;
+                    case OutfitPropertyType.Vector:
+                        var vector = a.FindPropertyRelative("vector");
+                        EditorGUI.BeginChangeCheck();
+                        var xyzw = EditorGUILayout.Vector4Field(GUIContent.none, vector.vector4Value);
+                        if (EditorGUI.EndChangeCheck()) vector.vector4Value = xyzw;
+                        break;
+                }
+                EditorGUILayout.EndHorizontal();
+            }
             if (warning != null) EditorGUILayout.HelpBox(warning, MessageType.Warning);
             return remove;
         }

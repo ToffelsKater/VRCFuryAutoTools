@@ -17,7 +17,8 @@ Outfits
 ```
 
 Each piece has an **Add Action** button for extra things its toggle should do while it is on, like in a VRCFury
-Toggle: turn another object on or off, set a blendshape, swap a material, play an animation clip or set an FX float.
+Toggle: turn another object on or off, set a blendshape, swap a material, change a material property, scale an object, play an animation clip or set
+an FX float.
 
 ### Automatic Zero Weight Bone Remover
 Some bones in an avatar or outfit don't actually move anything. They just add to your bone count and hurt your
