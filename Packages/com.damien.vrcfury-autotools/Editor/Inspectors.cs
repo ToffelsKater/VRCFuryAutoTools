@@ -323,6 +323,34 @@ namespace VRCFuryAutoTools {
         }
     }
 
+    [CustomEditor(typeof(AutoDigitigradeLegs))]
+    internal class AutoDigitigradeLegsEditor : Editor {
+        public override void OnInspectorGUI() {
+            DrawDefaultInspector();
+            var c = (AutoDigitigradeLegs)target;
+            // ponytail: searches the armature again on every repaint while the leg fields are empty; cache it if the inspector gets slow
+            var legs = AutoDigitigradeLegsBuild.Plan(c);
+            if (legs.Count == 0) {
+                EditorGUILayout.HelpBox("Put this on a humanoid avatar.", MessageType.Warning);
+                return;
+            }
+
+            var ik = AutoDigitigradeLegsBuild.UsesFinalIK(c);
+            if (c.mode == DigitigradeLegMode.FinalIK && !ik)
+                EditorGUILayout.HelpBox(AutoDigitigradeLegsBuild.FinalIK("FABRIK") == null
+                    ? "Final IK is not in this project, so rotation constraints are used instead."
+                    : "VRChat only runs Final IK on PC, so this build uses rotation constraints instead.", MessageType.Warning);
+            foreach (var leg in legs) {
+                if (leg.error != null)
+                    EditorGUILayout.HelpBox($"{leg.side} leg is skipped: {leg.error}.", MessageType.Warning);
+                else
+                    EditorGUILayout.HelpBox($"{leg.side} leg, set up at build with "
+                        + (ik ? "Final IK" + (c.rotationLimits ? " and hinge limits" : "") : "rotation constraints") + ":\n"
+                        + string.Join(" > ", leg.chain.Select(t => t.name)) + $"\nfollows {leg.realUpper.name} > {leg.realFoot.name}", MessageType.Info);
+            }
+        }
+    }
+
     [CustomEditor(typeof(MeshBoneStripper))]
     internal class MeshBoneStripperEditor : Editor {
         private ZeroWeightBoneAnalysis.Result result;

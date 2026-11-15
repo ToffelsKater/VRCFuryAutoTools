@@ -1,6 +1,6 @@
 # VRCFury Auto Tools
 
-Six small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
+Seven small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
 Add a component, upload your avatar, and it's done.
 
 ## What's inside
@@ -65,6 +65,16 @@ avatar is a lot slimmer than the one the outfit was made for, paint the baggy pa
 component and your original meshes are never changed. Link the outfit with a VRCFury Armature Link as usual, the
 fitter runs before it. The outfit's bone names need to match your avatar's (differences in case, `_`, `.` and
 left/right spelling are fine).
+
+### Automatic Digitigrade Legs
+Many avatars with digitigrade legs have two pairs of legs in the armature: the humanoid legs that VRChat's full body
+IK moves, and a fake pair the mesh is weighted to. Put this on your avatar and the fake legs are hooked up to the real
+ones when you upload. With **Final IK** each fake leg gets a FABRIK solver that plants its foot exactly on the real
+foot, plus optional hinge limits so the knee and hock only bend the way they are modelled. Don't own Final IK? Pick
+**Rotation Constraints** and the legs follow with VRChat rotation constraints only, with the hock kept parallel to the
+thigh. The fake legs are found automatically and the component shows which bones it picked. If it got them wrong, drag
+in the upper leg and the foot yourself. Final IK only runs on PC, so Quest and Android uploads use the constraints by
+themselves. Your original avatar is never changed.
 
 ## Install
 
