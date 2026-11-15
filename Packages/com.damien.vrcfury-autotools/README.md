@@ -68,7 +68,8 @@ IK moves, and a fake pair the mesh is weighted to. Put this on your avatar and t
 ones when you upload. With **Final IK** each fake leg gets a FABRIK solver that plants its foot exactly on the real
 foot, plus optional hinge limits so the knee and hock only bend the way they are modelled. Don't own Final IK? Pick
 **Rotation Constraints** and the legs follow with VRChat rotation constraints only, with the hock kept parallel to the
-thigh. The fake legs are found automatically and the component shows which bones it picked. If it got them wrong, drag
+thigh. Fake legs built like normal ones (upper leg, lower leg, foot) always copy the real legs with constraints, since IK
+would let their knees swing sideways. The fake legs are found automatically and the component shows which bones it picked. If it got them wrong, drag
 in the upper leg and the foot yourself. Final IK only runs on PC, so Quest and Android uploads use the constraints by
 themselves. Your original avatar is never changed.
 

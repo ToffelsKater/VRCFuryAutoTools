@@ -18,6 +18,10 @@ namespace VRCFuryAutoTools {
             public Transform realUpper, realLower, realFoot;
             public readonly List<Transform> chain = new List<Transform>(); // fake upper leg ... fake foot
             public string error;
+
+            /// A fake leg built like the real one (upper leg, lower leg, foot) copies its rotations in both modes.
+            /// IK only pins the foot, so its knee could swing around the hip-to-foot line and the leg looks twisted.
+            public bool Humanoid => chain.Count == 3;
         }
 
         /// <summary>Final IK is an Asset Store asset without an assembly definition, so it can only be reached by name.</summary>
@@ -114,11 +118,12 @@ namespace VRCFuryAutoTools {
                 }
                 var last = leg.chain.Count - 1;
                 Follow(leg.chain[last], leg.realFoot); // in both modes: FABRIK places the foot but leaves its rotation alone
-                if (ik) {
+                if (ik && !leg.Humanoid) {
                     SetupIK(leg, root.right, c.rotationLimits);
                     continue;
                 }
-                // every second bone turns with the real upper leg, so the hock stays parallel to the thigh
+                // every second bone turns with the real upper leg, so the hock stays parallel to the thigh.
+                // On a humanoid fake leg that is just upper > upper leg and lower > lower leg.
                 for (var i = 0; i < last; i++) Follow(leg.chain[i], i % 2 == 0 ? leg.realUpper : leg.realLower);
             }
         }
