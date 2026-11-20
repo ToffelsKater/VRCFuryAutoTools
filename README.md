@@ -77,6 +77,14 @@ of FABRIK, so their knees aim like the real ones. The fake legs are found automa
 bones it picked. If it got them wrong, drag in the upper leg and the foot yourself. Final IK only runs on PC, so Quest
 and Android uploads use the constraints by themselves. Your original avatar is never changed.
 
+### Poiyomi Shader Feature Toggles
+Four components, one per Poiyomi feature: **Poiyomi LTCGI**, **Poiyomi Contact Shadows**, **Poiyomi SSAO** and
+**Poiyomi Light Data**. Put one on your avatar and at upload it adds a menu folder `Shader/<Feature>` with a **Toggle**
+and an **Intensity** radial. Light Data has no Toggle, only **Min Brightness** and **Grayscale Lighting** radials. They change the
+feature on every material of the avatar that has it. Set the highest intensity and the starting values on the
+component. Poiyomi bakes properties in when it locks a material, so the component warns you about every property that
+isn't marked **Animated (when locked)** and every material that has the feature switched off.
+
 ## Install
 
 1. Open the [landing page](https://toffelskater.github.io/VRCFuryAutoTools/) and click **Add to VCC**

@@ -352,6 +352,29 @@ namespace VRCFuryAutoTools {
         }
     }
 
+    [CustomEditor(typeof(PoiyomiFeature), true)]
+    internal class PoiyomiFeatureEditor : Editor {
+        public override void OnInspectorGUI() {
+            var c = (PoiyomiFeature)target;
+            serializedObject.Update();
+            if (c.ToggleProperty != null) DrawDefaultInspector();
+            else DrawPropertiesExcluding(serializedObject, nameof(PoiyomiFeature.defaultOn)); // no Toggle to start on
+            serializedObject.ApplyModifiedProperties();
+            var descriptor = c.GetComponentInParent<VRC_AvatarDescriptor>(true);
+            if (descriptor == null) {
+                EditorGUILayout.HelpBox("Put this on an avatar.", MessageType.Warning);
+                return;
+            }
+            // ponytail: rescans every material of the avatar on each repaint; cache it if the inspector gets slow
+            var problems = PoiyomiFeatures.Problems(c, descriptor.transform);
+            var path = PoiyomiFeatures.MenuPath(c);
+            EditorGUILayout.HelpBox("At build: "
+                + string.Join(", ", c.Sliders.Select(s => s.label).Prepend(c.ToggleProperty != null ? "Toggle" : null).Where(n => n != null).Select(n => $"{path}/{n}"))
+                + $". Every material on the avatar with {c.Label} follows them.", MessageType.Info);
+            foreach (var p in problems) EditorGUILayout.HelpBox(p, MessageType.Warning);
+        }
+    }
+
     [CustomEditor(typeof(MeshBoneStripper))]
     internal class MeshBoneStripperEditor : Editor {
         private ZeroWeightBoneAnalysis.Result result;
