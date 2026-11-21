@@ -94,6 +94,13 @@ feature on every material of the avatar that has it. Set the highest intensity a
 component. Poiyomi bakes properties in when it locks a material, so the component warns you about every property that
 isn't marked **Animated (when locked)** and every material that has the feature switched off.
 
+### Performance Rank After Build
+**Tools > VRCFury Auto Tools > Performance Rank After Build**. The SDK ranks the avatar as it is in the scene, before
+VRCFury, NDMF and the other build tools change it. This window copies the avatar, runs every avatar build hook on the
+copy like an upload does, and shows the rank of the result for PC and Quest side by side, then deletes the copy. With an
+Automatic Quest Copy Creator on the avatar, the Quest column uses its copy. The hooks run for the current build target,
+so steps a tool only does for the other platform are left out.
+
 ## Install
 
 1. Open the [landing page](https://toffelskater.github.io/VRCFuryAutoTools/) and click **Add to VCC**
