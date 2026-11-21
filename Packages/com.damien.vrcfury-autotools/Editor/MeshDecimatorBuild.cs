@@ -72,6 +72,51 @@ namespace VRCFuryAutoTools {
             return reduced;
         }
 
+        /// <summary>The mesh reduced, or the mesh itself if it can't be: one odd mesh must not stop the upload.</summary>
+        private static Mesh TryReduce(Renderer r, Mesh mesh, float quality, SimplificationOptions options) {
+            try {
+                return Reduce(mesh, quality, options);
+            } catch (System.Exception e) {
+                Debug.LogWarning($"[VRCFuryAutoTools] '{r.name}' could not be reduced and stays as it is: {e.Message}", r);
+                return mesh;
+            }
+        }
+
+        /// <summary>Puts the mesh on the renderer, keeping its blendshape weights.</summary>
+        private static void Swap(Renderer r, Mesh from, Mesh to) {
+            var smr = r as SkinnedMeshRenderer;
+            var weights = smr != null ? Enumerable.Range(0, from.blendShapeCount).Select(smr.GetBlendShapeWeight).ToList() : null;
+            SetMesh(r, to);
+            if (smr != null) for (var i = 0; i < Mathf.Min(weights.Count, to.blendShapeCount); i++) smr.SetBlendShapeWeight(i, weights[i]);
+        }
+
+        /// <summary>
+        /// Renderers this build reduced, with the triangles their mesh got and the settings used. Some NDMF tools (Starmesh) put
+        /// the original mesh back later in the build, see <see cref="ReduceRestored"/>.
+        /// </summary>
+        internal static readonly Dictionary<Renderer, (int triangles, SimplificationOptions options)> ReducedTo =
+            new Dictionary<Renderer, (int, SimplificationOptions)>();
+
+        /// <summary>
+        /// Renderers that have more triangles again than they were reduced to (another tool put the original mesh back) are reduced
+        /// once more, from the mesh they have now so that tool's edits stay. One that has the same count with a new mesh (VRCFury's
+        /// SPS bakes a copy of the reduced one) is left alone.
+        /// </summary>
+        public static void ReduceRestored() {
+            var done = new Dictionary<Mesh, Mesh>();
+            foreach (var kv in ReducedTo) {
+                var r = kv.Key;
+                var mesh = r != null ? MeshOf(r) : null;
+                if (mesh == null || Triangles(mesh) <= kv.Value.triangles * 1.02f) continue;
+                if (!done.TryGetValue(mesh, out var reduced))
+                    done[mesh] = reduced = TryReduce(r, mesh, (float)kv.Value.triangles / Triangles(mesh), kv.Value.options);
+                Swap(r, mesh, reduced);
+                Debug.Log($"[VRCFuryAutoTools] '{r.name}' got its original mesh back from another tool later in the build "
+                    + $"and was reduced again: {Triangles(mesh)} > {Triangles(reduced)}.", r);
+            }
+            ReducedTo.Clear();
+        }
+
         public static void Apply(MeshDecimator c) {
             var plan = MakePlan(c);
             if (plan.Total <= c.targetTriangles) return;
@@ -86,19 +131,9 @@ namespace VRCFuryAutoTools {
             var done = new Dictionary<Mesh, Mesh>(); // a mesh several renderers share is reduced once
             foreach (var r in plan.reduced) {
                 var mesh = MeshOf(r);
-                if (!done.TryGetValue(mesh, out var reduced)) {
-                    try {
-                        reduced = Reduce(mesh, plan.quality, options);
-                    } catch (System.Exception e) { // one odd mesh must not stop the upload: it stays as it is
-                        Debug.LogWarning($"[VRCFuryAutoTools] '{r.name}' could not be reduced and stays as it is: {e.Message}", r);
-                        reduced = mesh;
-                    }
-                    done[mesh] = reduced;
-                }
-                var smr = r as SkinnedMeshRenderer;
-                var weights = smr != null ? Enumerable.Range(0, mesh.blendShapeCount).Select(smr.GetBlendShapeWeight).ToList() : null;
-                SetMesh(r, reduced);
-                if (smr != null) for (var i = 0; i < weights.Count; i++) smr.SetBlendShapeWeight(i, weights[i]);
+                if (!done.TryGetValue(mesh, out var reduced)) done[mesh] = reduced = TryReduce(r, mesh, plan.quality, options);
+                Swap(r, mesh, reduced);
+                if (reduced != mesh) ReducedTo[r] = (Triangles(reduced), options);
             }
             var after = plan.kept + done.Values.Sum(Triangles);
             var before = plan.kept + done.Keys.Sum(Triangles);
@@ -110,7 +145,7 @@ namespace VRCFuryAutoTools {
         }
     }
 
-    /// <summary>Runs before VRCFury (-10000), so VRCFury's own meshes (SPS) are never reduced, and after the Mesh Bone Stripper.</summary>
+    /// <summary>Runs before VRCFury (-10000), so VRCFury's SPS bakes from the reduced meshes, and after the Mesh Bone Stripper.</summary>
     internal class MeshDecimatorHook : IVRCSDKPreprocessAvatarCallback {
         public int callbackOrder => -14000;
 
@@ -118,7 +153,19 @@ namespace VRCFuryAutoTools {
             var all = avatar.GetComponentsInChildren<MeshDecimator>(true);
             if (all.Length == 0) return true;
             AssetDatabase.DeleteAsset(MeshDecimatorBuild.Folder); // the meshes of the build before
+            MeshDecimatorBuild.ReducedTo.Clear();
             foreach (var c in all) MeshDecimatorBuild.Apply(c);
+            return true;
+        }
+    }
+
+    /// <summary>Runs after VRCFury and NDMF, so after any tool that puts the original meshes back. The SDK has removed the
+    /// decimator components by now, so it works from what the early hook remembered.</summary>
+    internal class MeshDecimatorRestoredHook : IVRCSDKPreprocessAvatarCallback {
+        public int callbackOrder => 10000;
+
+        public bool OnPreprocessAvatar(GameObject avatar) {
+            MeshDecimatorBuild.ReduceRestored();
             return true;
         }
     }
