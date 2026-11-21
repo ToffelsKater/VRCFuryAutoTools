@@ -159,10 +159,11 @@ namespace VRCFuryAutoTools {
         }
     }
 
-    /// <summary>Runs after VRCFury and NDMF, so after any tool that puts the original meshes back. The SDK has removed the
-    /// decimator components by now, so it works from what the early hook remembered.</summary>
+    /// <summary>Runs after VRCFury (-10000) and NDMF's main phases (-11000), where tools like Starmesh put the original meshes
+    /// back, and before NDMF's optimizing phase (-1025), where Avatar Optimizer merges meshes into new renderers this hook would
+    /// not know. Works from what the early hook remembered.</summary>
     internal class MeshDecimatorRestoredHook : IVRCSDKPreprocessAvatarCallback {
-        public int callbackOrder => 10000;
+        public int callbackOrder => -2000;
 
         public bool OnPreprocessAvatar(GameObject avatar) {
             MeshDecimatorBuild.ReduceRestored();
