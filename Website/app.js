@@ -277,6 +277,27 @@ document.getElementById('search').addEventListener('input', ({ target: { value }
         });
       }
     },
+    merge: {
+      dur: 8.6, still: 5.8,
+      steps: [[0, 'Six skinned meshes'], [.6, 'Body, Hair and Ears always show together'], [1.8, 'They become one mesh'], [3, 'Top and Skirt share the OutfitA toggle'], [4.2, 'Face stays: the avatar descriptor uses it'], [5.4, '3 skinned meshes, every toggle still works'], [8, 'Six skinned meshes']],
+      render(t, q) {
+        const r = 1 - P(t, 8, 8.6, eio);
+        const a = P(t, 1.8, 2.6, eio) * r, b = P(t, 3.4, 4.2, eio) * r;
+        const hl = [P(t, .6, .9), P(t, 3, 3.3), P(t, 4.2, 4.5)].map(k => k * r);
+        q('p').forEach((p, i) => {
+          const g = i < 3 ? 0 : i < 5 ? 1 : 2, k = [a, b, 0][g];
+          const dy = ([44, 108][g] - (32 + 24 * i)) * k;
+          p.setAttribute('transform', `translate(${(190 * k).toFixed(2)} ${dy.toFixed(2)})`);
+          op(p, 1 - cl((k - .7) / .3));
+          q('pr')[i].style.stroke = mix(hl[g]);
+        });
+        q('mp').forEach((m, g) => op(m, cl(([a, b][g] - .7) / .3)));
+        op(q('tg')[0], b);
+        op(q('fk')[0], hl[2]); q('fk')[0].style.fill = mix(hl[2]);
+        const cnt = q('cnt')[0];
+        cnt.textContent = `${6 - (a > .95 ? 2 : 0) - (b > .95 ? 1 : 0)}`;
+      }
+    },
     rank: {
       dur: 9, still: 6,
       steps: [[0, 'The SDK ranks the avatar in the scene'], [1.4, 'A copy is built like an upload'], [3, 'PC: the rank the upload gets'], [4.6, 'Quest: ranked on Quest limits'], [6.4, 'The copy is deleted again'], [8, 'The SDK ranks the avatar in the scene']],
