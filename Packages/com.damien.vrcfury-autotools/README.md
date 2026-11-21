@@ -1,6 +1,6 @@
 # VRCFury Auto Tools
 
-Nine small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
+Eleven small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
 Add a component, upload your avatar, and it's done.
 
 ## What's inside
@@ -36,6 +36,13 @@ visemes and eyelid blendshapes) is left alone by default, because a reduced face
 You can leave out other meshes as well. Open mesh edges and UV seams stay in place so you don't get gaps or smeared
 textures, and you can switch that off to reduce further. Your mesh files are never changed: the reduced meshes only
 exist in the uploaded avatar.
+
+### Automatic Skinned Mesh Merger
+Every skinned mesh counts against your performance rank. Put this on your avatar root and when you upload, the skinned
+meshes that are always shown and hidden together become one mesh, after VRCFury has built its toggles. Parts that share
+a material also share one material slot. Meshes you toggle on their own stay separate, and so do the face mesh, meshes
+with animated materials, VRCFury SPS meshes and cloth. Your mesh files are never changed. Use
+**Tools > VRCFury Auto Tools > Performance Rank After Build** to see what it saves.
 
 ### Automatic PhysBone Collider Creator
 Put this on your avatar and every humanoid bone gets a PhysBone collider sized to the bone's length and the mesh
@@ -108,5 +115,6 @@ so steps a tool only does for the other platform are left out.
 
 * Works with the VRChat Avatars SDK 3.7 or newer and Unity 2022.3.
 * The Mesh Decimator uses [UnityMeshSimplifier](https://github.com/Whinarn/UnityMeshSimplifier) by Mattias Edlund (MIT license), included in the package.
+* Every component's inspector says where it goes: the avatar root, an outfit root or either, and warns you when it sits somewhere else.
 * This is an unofficial add-on and isn't made by VRChat or VRCFury.
 * It only uses the parts of VRCFury that are open for add-ons. If you plan to sell or share it, take a look at VRCFury's license first.
