@@ -38,6 +38,15 @@ namespace VRCFuryAutoTools {
             return new GUIContent(" " + text, icon);
         }
 
+        /// The SDK's name for the category. Its table has no entry for some (Overall), those get the enum name with spaces.
+        private static string DisplayName(AvatarPerformanceCategory c) {
+            try {
+                return AvatarPerformanceStats.GetPerformanceCategoryDisplayName(c);
+            } catch (System.Collections.Generic.KeyNotFoundException) {
+                return ObjectNames.NicifyVariableName(c.ToString());
+            }
+        }
+
         /// <summary>The stat behind the category: the field named like it (PolyCount: polyCount), by name since SDKs add categories.</summary>
         private static object Value(AvatarPerformanceStats s, AvatarPerformanceCategory c) {
             if (c == AvatarPerformanceCategory.AABB) return s.aabb?.size.ToString("F2");
@@ -130,7 +139,7 @@ namespace VRCFuryAutoTools {
                 if (rp == PerformanceRating.None && rq == PerformanceRating.None) continue; // not measured without an asset bundle
                 var style = c == AvatarPerformanceCategory.Overall ? EditorStyles.boldLabel : EditorStyles.label;
                 using (new EditorGUILayout.HorizontalScope()) {
-                    EditorGUILayout.LabelField(AvatarPerformanceStats.GetPerformanceCategoryDisplayName(c), style, GUILayout.Width(200));
+                    EditorGUILayout.LabelField(DisplayName(c), style, GUILayout.Width(200));
                     EditorGUILayout.LabelField(Rating(rp, Value(pc, c)), style, GUILayout.Height(18));
                     EditorGUILayout.LabelField(Rating(rq, Value(quest, c)), style, GUILayout.Height(18));
                 }
