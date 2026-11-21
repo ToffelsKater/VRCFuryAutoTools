@@ -78,7 +78,7 @@ namespace VRCFuryAutoTools {
             return m;
         }
 
-        private static string FileName(string s) {
+        internal static string FileName(string s) {
             var name = string.Join("_", s.Split(Path.GetInvalidFileNameChars())).Trim();
             return name == "" ? "Unnamed" : name;
         }
@@ -86,15 +86,20 @@ namespace VRCFuryAutoTools {
         /// Holds one folder per component with its material and texture copies. Nothing outside it is ever deleted.
         private const string CopiesRoot = "Assets/VRCFuryAutoTools/Quest Copies";
 
+        /// <summary>Makes the folder (a path under Assets) and the ones above it that are missing.</summary>
+        internal static void MakeFolder(string path) {
+            var parent = "Assets";
+            foreach (var p in path.Split('/').Skip(1)) {
+                if (!AssetDatabase.IsValidFolder($"{parent}/{p}")) AssetDatabase.CreateFolder(parent, p);
+                parent += "/" + p;
+            }
+        }
+
         /// <summary>The component's folder for its copies, made (with a name no other avatar has) if it has none yet.</summary>
         private static string CopiesFolder(AutoQuestCopy c, GameObject root) {
             var path = AssetDatabase.GetAssetPath(c.copiesFolder);
             if (AssetDatabase.IsValidFolder(path)) return path;
-            var parent = "Assets";
-            foreach (var p in CopiesRoot.Split('/').Skip(1)) {
-                if (!AssetDatabase.IsValidFolder($"{parent}/{p}")) AssetDatabase.CreateFolder(parent, p);
-                parent += "/" + p;
-            }
+            MakeFolder(CopiesRoot);
             var name = Path.GetFileName(AssetDatabase.GenerateUniqueAssetPath($"{CopiesRoot}/{FileName(root.name)}"));
             path = AssetDatabase.GUIDToAssetPath(AssetDatabase.CreateFolder(CopiesRoot, name));
             c.copiesFolder = AssetDatabase.LoadAssetAtPath<Object>(path);
@@ -399,6 +404,12 @@ namespace VRCFuryAutoTools {
 
             var max = Mathf.ClosestPowerOfTwo(Mathf.Clamp(c.maxTextureSize, 32, 8192));
             var capped = CapTextures(copies.Values.Distinct().ToList(), folder, t => max, new HashSet<string>());
+
+            if (c.reduceTriangles) { // the PC avatar's own decimator came along with the copy: it just gets the Quest target
+                var decimator = copy.GetComponentInChildren<MeshDecimator>(true);
+                if (decimator == null) decimator = Undo.AddComponent<MeshDecimator>(copy);
+                decimator.targetTriangles = c.targetTriangles;
+            }
 
             c.questCopy = copy;
             PrefabUtility.RecordPrefabInstancePropertyModifications(c);

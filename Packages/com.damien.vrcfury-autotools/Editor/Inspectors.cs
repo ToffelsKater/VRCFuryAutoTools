@@ -375,6 +375,23 @@ namespace VRCFuryAutoTools {
         }
     }
 
+    [CustomEditor(typeof(MeshDecimator))]
+    internal class MeshDecimatorEditor : Editor {
+        public override void OnInspectorGUI() {
+            DrawDefaultInspector();
+            var c = (MeshDecimator)target;
+            // ponytail: counts every mesh of the avatar on each repaint; cache it if the inspector gets slow
+            var plan = MeshDecimatorBuild.MakePlan(c);
+            if (plan.Total <= c.targetTriangles)
+                EditorGUILayout.HelpBox($"{plan.Total} triangles, already at or under the target. Nothing is reduced.", MessageType.Info);
+            else if (plan.quality <= 0)
+                EditorGUILayout.HelpBox($"The kept meshes alone have {plan.kept} triangles, more than the target. Nothing is reduced.", MessageType.Warning);
+            else
+                EditorGUILayout.HelpBox($"{plan.Total} triangles now. At build {plan.reduced.Count} meshes keep about {plan.quality:P0} of their "
+                    + $"triangles, the {plan.kept} triangles of the kept meshes stay. The mesh files are not changed.", MessageType.Info);
+        }
+    }
+
     [CustomEditor(typeof(MeshBoneStripper))]
     internal class MeshBoneStripperEditor : Editor {
         private ZeroWeightBoneAnalysis.Result result;

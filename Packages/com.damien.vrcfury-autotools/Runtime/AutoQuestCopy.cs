@@ -13,6 +13,11 @@ namespace VRCFuryAutoTools {
         [Tooltip("Left out of the copy (regenerate to apply). An object goes with all its children, a component (drag its header in) "
             + "goes alone and its object stays")]
         public Object[] blacklist = new Object[0];
+        [Tooltip("Puts an Automatic Mesh Decimator on the copy (regenerate to apply), so its meshes get fewer triangles when it is "
+            + "uploaded. Its other settings are on that component")]
+        public bool reduceTriangles = false;
+        [Tooltip("The copy's triangles after the upload build, about. Quest ranks: Excellent 7500, Good 10000, Medium 15000, Poor 20000")]
+        public int targetTriangles = 20000;
         [Tooltip("The copy this component made. Regenerating replaces it, removing the component deletes it")]
         public GameObject questCopy;
         [Tooltip("Folder with the copy's materials and textures. Removing the component moves it to the trash")]

@@ -32,6 +32,15 @@ armature that they aren't weighted to is removed when you upload. Hips, Spine, C
 are kept by default, and each one can be switched off. This tool is strict: a mesh that isn't in the list doesn't
 protect its bones, so use the preview to check before you upload.
 
+### Automatic Mesh Decimator
+Too many triangles for the rank you want? Put this on your avatar, set a target triangle count, and when you upload,
+every mesh gets fewer triangles until the whole avatar is at about that target. Each reduced mesh keeps the same share
+of its triangles, and the inspector shows how big that share is before you upload. The face mesh (the one with your
+visemes and eyelid blendshapes) is left alone by default, because a reduced face loses detail where expressions move.
+You can leave out other meshes as well. Open mesh edges and UV seams stay in place so you don't get gaps or smeared
+textures, and you can switch that off to reduce further. Your mesh files are never changed: the reduced meshes only
+exist in the uploaded avatar.
+
 ### Automatic PhysBone Collider Creator
 Put this on your avatar and every humanoid bone gets a PhysBone collider sized to the bone's length and the mesh
 around it. Put it on any other bone, like a tail or an ear, and that bone and all its children get one. The
@@ -52,7 +61,7 @@ the 10 MB download limit when you upload it, its biggest textures are halved (ag
 avatar's blueprint ID, so upload the PC version first, then switch the SDK to Android and upload the copy.
 **Regenerate Quest copy** replaces it, and removing the component deletes it again, with its folder of material and
 texture copies (moved to the trash). Anything you add to the **Blacklist** is left out of the copy: an object together with
-all its children, or a single component (drag in its header) while its object stays. It isn't optimized: expect a Very Poor rank until you trim it down.
+all its children, or a single component (drag in its header) while its object stays. Tick **Reduce Triangles** to put a Mesh Decimator on the copy too, with a Quest target (20,000 by default, the Poor limit). Otherwise it isn't optimized: expect a Very Poor rank until you trim it down.
 
 ### Automatic Outfit Fitter
 Got an outfit that was made for a different avatar? Put this on the outfit and when you upload, its bones are moved
@@ -95,5 +104,6 @@ isn't marked **Animated (when locked)** and every material that has the feature 
 ## Good to know
 
 * Works with the VRChat Avatars SDK 3.7 or newer and Unity 2022.3.
+* The Mesh Decimator uses [UnityMeshSimplifier](https://github.com/Whinarn/UnityMeshSimplifier) by Mattias Edlund (MIT license), included in the package.
 * This is an unofficial add-on and isn't made by VRChat or VRCFury.
 * It only uses the parts of VRCFury that are open for add-ons. If you plan to sell or share it, take a look at VRCFury's license first.
