@@ -410,6 +410,8 @@ namespace VRCFuryAutoTools {
                 if (decimator == null) decimator = Undo.AddComponent<MeshDecimator>(copy);
                 decimator.targetTriangles = c.targetTriangles;
             }
+            // one came along from the PC avatar if it has one
+            if (c.mergeMeshes && copy.GetComponentInChildren<SkinnedMeshMerger>(true) == null) Undo.AddComponent<SkinnedMeshMerger>(copy);
 
             c.questCopy = copy;
             PrefabUtility.RecordPrefabInstancePropertyModifications(c);

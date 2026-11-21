@@ -18,6 +18,9 @@ namespace VRCFuryAutoTools {
         public bool reduceTriangles = false;
         [Tooltip("The copy's triangles after the upload build, about. Quest ranks: Excellent 7500, Good 10000, Medium 15000, Poor 20000")]
         public int targetTriangles = 20000;
+        [Tooltip("Puts an Automatic Skinned Mesh Merger on the copy (regenerate to apply), so meshes shown and hidden together become "
+            + "one when it is uploaded. Quest ranks allow 1 skinned mesh for Good, 2 for Medium and Poor")]
+        public bool mergeMeshes = false;
         [Tooltip("The copy this component made. Regenerating replaces it, removing the component deletes it")]
         public GameObject questCopy;
         [Tooltip("Folder with the copy's materials and textures. Removing the component moves it to the trash")]

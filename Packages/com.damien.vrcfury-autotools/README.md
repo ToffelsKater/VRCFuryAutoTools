@@ -41,8 +41,9 @@ exist in the uploaded avatar.
 Every skinned mesh counts against your performance rank. Put this on your avatar root and when you upload, the skinned
 meshes that are always shown and hidden together become one mesh, after VRCFury has built its toggles. Parts that share
 a material also share one material slot. Meshes you toggle on their own stay separate, and so do the face mesh, meshes
-with animated materials, VRCFury SPS meshes and cloth. Your mesh files are never changed. Use
-**Tools > VRCFury Auto Tools > Performance Rank After Build** to see what it saves.
+with animated materials, VRCFury SPS meshes and cloth. Your mesh files are never changed. **Preview merge** builds a
+copy of the avatar like an upload does and lists which meshes become one and, for every mesh that stays separate, why.
+The same list is in the console after every upload.
 
 ### Automatic PhysBone Collider Creator
 Put this on your avatar and every humanoid bone gets a PhysBone collider sized to the bone's length and the mesh
@@ -64,7 +65,7 @@ the 10 MB download limit when you upload it, its biggest textures are halved (ag
 avatar's blueprint ID, so upload the PC version first, then switch the SDK to Android and upload the copy.
 **Regenerate Quest copy** replaces it, and removing the component deletes it again, with its folder of material and
 texture copies (moved to the trash). Anything you add to the **Blacklist** is left out of the copy: an object together with
-all its children, or a single component (drag in its header) while its object stays. Tick **Reduce Triangles** to put a Mesh Decimator on the copy too, with a Quest target (20,000 by default, the Poor limit). Otherwise it isn't optimized: expect a Very Poor rank until you trim it down.
+all its children, or a single component (drag in its header) while its object stays. Tick **Reduce Triangles** to put a Mesh Decimator on the copy too, with a Quest target (20,000 by default, the Poor limit). Tick **Merge Meshes** to put a Skinned Mesh Merger on it as well: Quest allows only 2 skinned meshes up to Poor. Otherwise it isn't optimized: expect a Very Poor rank until you trim it down.
 
 ### Automatic Outfit Fitter
 Got an outfit that was made for a different avatar? Put this on the outfit and when you upload, its bones are moved
