@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ name | html.escape }}</title>
-<meta name="description" content="Quest copies, outfit fitting and toggles, digitigrade legs, bone cleanup and PhysBone colliders for VRCFury avatars, done for you.">
+<meta name="description" content="Quest copies, outfit fitting and toggles, digitigrade legs, bone cleanup, mesh decimation, PhysBone colliders and Poiyomi shader toggles for VRCFury avatars, done for you.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='.35' cy='.3' r='.8'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.25' stop-color='%233fe0ff'/%3E%3Cstop offset='1' stop-color='%232f5bff'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='15' fill='url(%23g)'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,7 +30,7 @@
 <div class="hero-copy">
 <p class="eyebrow" style="--i:0">Addon for VRCFury</p>
 <h1 style="--i:1">{{ name | html.escape }}</h1>
-<p class="lead" style="--i:2">Quest copies, outfit fitting and toggles, digitigrade legs, bone cleanup and PhysBone colliders, done for you.</p>
+<p class="lead" style="--i:2">Quest copies, outfit fitting and toggles, digitigrade legs, bone cleanup, mesh decimation, PhysBone colliders and Poiyomi shader toggles, done for you.</p>
 <div class="actions" style="--i:3">
 <button class="btn primary" id="addToVcc"><i class="ph ph-plus-circle" aria-hidden="true"></i>Add to VCC</button>
 <a class="btn ghost" href="#tools">See the tools<i class="ph ph-arrow-down" aria-hidden="true"></i></a>
@@ -59,7 +59,7 @@
 <article class="tile tile-feature" data-viz="quest"><div class="titlebar"><span class="lights"><i></i><i></i><i></i></span><span class="when">In editor</span></div>
 <div class="tile-text">
 <h3>Automatic Quest Copy Creator</h3>
-<p>Add it to an avatar and a copy appears next to it with its own copies of your materials on mobile shaders, PC-only components removed, VRChat constraints and capped copies of big textures. Your originals stay untouched. It keeps the blueprint ID, so switch the SDK to Android and upload it as your Quest version.</p>
+<p>Add it to an avatar and a copy appears next to it with its own copies of your materials on mobile shaders, PC-only components removed, VRChat constraints and capped copies of big textures. Your originals stay untouched. It keeps the blueprint ID, so switch the SDK to Android and upload it as your Quest version. Tick <strong>Reduce Triangles</strong> to bring it down to a Quest triangle target too.</p>
 
 </div>
 <figure class="viz">
@@ -235,6 +235,59 @@
 </svg>
 <figcaption class="step"><i></i><span class="t"></span></figcaption>
 </figure>
+</article>
+
+<article class="tile tile-feature" data-viz="deci"><div class="titlebar"><span class="lights"><i></i><i></i><i></i></span><span class="when">At build</span></div>
+<div class="tile-text">
+<h3>Automatic Mesh Decimator</h3>
+<p>Set a triangle target and at upload every mesh of your avatar gets fewer triangles, each keeping the same share, until the whole avatar is at about that target. The face with your visemes is left alone, open edges and UV seams stay in place, and your mesh files are never changed. The Quest Copy Creator can add one with a Quest target.</p>
+
+</div>
+<figure class="viz">
+<svg viewBox="0 0 360 180" role="img" aria-label="An avatar of 120,000 triangles is reduced to the 70,000 target: the body mesh loses triangles, the face stays as it is, open edges and UV seams stay in place">
+<text x="8" y="22">Triangles</text>
+<rect class="s f" x="8" y="30" width="168" height="20" rx="5"></rect>
+<rect data-k="fill" class="bar" x="8" y="30" width="168" height="20" rx="5"></rect>
+<path class="a" d="M106 26v28"></path>
+<text data-k="cnt" class="at" x="8" y="72">120,000</text><text class="end" x="176" y="72">target 70,000</text>
+<rect data-k="bar" class="bar" x="8" y="84" width="168" height="20" rx="5"></rect>
+<rect data-k="bar" class="bar" x="8" y="108" width="168" height="20" rx="5"></rect>
+<rect data-k="bar" class="bar" x="8" y="132" width="168" height="20" rx="5"></rect>
+<rect data-k="bar" class="bar" x="8" y="156" width="168" height="20" rx="5"></rect>
+<text data-k="fl" x="16" y="99">Same share per mesh</text>
+<text data-k="fl" x="16" y="123">Face kept as it is</text>
+<text data-k="fl" x="16" y="147">Edges and seams stay</text>
+<text data-k="fl" x="16" y="171">Mesh files unchanged</text>
+<path data-k="face" class="s" d="M214 14h48v40h-48zM226 14v40M238 14v40M250 14v40M214 24h48M214 34h48M214 44h48M214 14l48 40M214 24l36 30M214 34l24 20M214 44l12 10M226 14l36 30M238 14l24 20M250 14l12 10"></path>
+<text data-k="ft" x="270" y="38">Face</text>
+<path data-k="fine" class="s" d="M230 66v104M214 79h128M262 66v104M214 105h128M294 66v104M214 131h128M326 66v104M214 157h128M214 79l16 13M214 105l16 13M214 131l16 13M214 157l16 13M230 66l16 13M230 92l16 13M230 118l16 13M230 144l16 13M246 79l16 13M246 105l16 13M246 131l16 13M246 157l16 13M262 66l16 13M262 92l16 13M262 118l16 13M262 144l16 13M278 79l16 13M278 105l16 13M278 131l16 13M278 157l16 13M294 66l16 13M294 92l16 13M294 118l16 13M294 144l16 13M310 79l16 13M310 105l16 13M310 131l16 13M310 157l16 13M326 66l16 13M326 92l16 13M326 118l16 13M326 144l16 13"></path>
+<path class="s" d="M214 66h128v104H214zM246 66v104M278 66v104M310 66v104M214 92h128M214 118h128M214 144h128M214 66l128 104M246 66l96 78M278 66l64 52M310 66l32 26M214 92l96 78M214 118l64 52M214 144l32 26"></path>
+<path data-k="bd" class="a" d="M214 66h128v104H214z"></path>
+<path data-k="seam" class="a dash" d="M278 66v104"></path>
+</svg>
+<figcaption class="step"><i></i><span class="t"></span></figcaption>
+</figure>
+</article>
+
+<article class="tile" data-viz="poi"><div class="titlebar"><span class="lights"><i></i><i></i><i></i></span><span class="when">At build</span></div>
+<figure class="viz">
+<svg viewBox="0 0 300 150" role="img" aria-label="A Shader menu folder with LTCGI, Contact Shadows, SSAO and Light Data: LTCGI is switched on and its intensity radial turned up, and every material with LTCGI follows">
+<text data-k="mh" x="10" y="20">Shader/</text>
+<g data-k="r"><rect class="s f" x="10" y="30" width="170" height="22" rx="6"></rect><text x="20" y="45">LTCGI</text><rect class="s f" x="146" y="34" width="26" height="14" rx="7"></rect><rect data-k="ton" class="a fa" x="146" y="34" width="26" height="14" rx="7"></rect><circle data-k="kn" class="dot" cx="153" cy="41" r="4.5"></circle></g>
+<g data-k="r"><rect class="s f" x="10" y="56" width="170" height="22" rx="6"></rect><text x="20" y="71">Contact Shadows</text><rect class="s f" x="146" y="60" width="26" height="14" rx="7"></rect><rect data-k="ton" class="a fa" x="146" y="60" width="26" height="14" rx="7"></rect><circle data-k="kn" class="dot" cx="153" cy="67" r="4.5"></circle></g>
+<g data-k="r"><rect class="s f" x="10" y="82" width="170" height="22" rx="6"></rect><text x="20" y="97">SSAO</text><rect class="s f" x="146" y="86" width="26" height="14" rx="7"></rect><rect data-k="ton" class="a fa" x="146" y="86" width="26" height="14" rx="7"></rect><circle data-k="kn" class="dot" cx="153" cy="93" r="4.5"></circle></g>
+<g data-k="r"><rect class="s f" x="10" y="108" width="170" height="22" rx="6"></rect><text x="20" y="123">Light Data</text><circle class="s" cx="159" cy="119" r="6"></circle><path class="s" d="M159 119v-6"></path></g>
+<circle class="s" cx="240" cy="62" r="26"></circle>
+<circle data-k="rad" class="a" cx="240" cy="62" r="26" pathLength="1" stroke-dasharray="1 2" stroke-dashoffset="1" transform="rotate(-90 240 62)"></circle>
+<text data-k="pct" class="at" x="240" y="67" text-anchor="middle">0%</text>
+<text x="240" y="106" text-anchor="middle">Intensity</text>
+<circle data-k="mat" class="s f" cx="214" cy="128" r="8"></circle><circle data-k="mat" class="s f" cx="240" cy="128" r="8"></circle><circle data-k="mat" class="s f" cx="266" cy="128" r="8"></circle>
+</svg>
+<figcaption class="step"><i></i><span class="t"></span></figcaption>
+</figure>
+<h3>Poiyomi Shader Feature Toggles</h3>
+<p>One component each for Poiyomi's LTCGI, Contact Shadows, SSAO and Light Data. At upload it adds a <strong>Shader</strong> menu folder with a toggle and intensity radial that change the feature on every material of the avatar that has it, and it warns you about properties Poiyomi would bake in when it locks the material.</p>
+
 </article>
 
 </div>

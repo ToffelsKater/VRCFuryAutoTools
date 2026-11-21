@@ -236,6 +236,46 @@ document.getElementById('search').addEventListener('input', ({ target: { value }
         brush.setAttribute('cx', lerp(222, 240, paint).toFixed(1)); brush.setAttribute('cy', lerp(126, 84, paint).toFixed(1));
         op(brush, Math.min(P(t, 6.2, 6.6), 1 - P(t, 7.9, 8.3)));
       }
+    },
+    deci: {
+      dur: 9, still: 6.4,
+      steps: [[0, 'An avatar with 120,000 triangles'], [.6, 'Target: 70,000 for PC'], [1.4, 'At upload every mesh keeps the same share'], [3.4, 'The face with visemes stays as it is'], [4.4, 'Open edges and UV seams stay in place'], [5.6, '70,000 triangles, mesh files unchanged'], [8, 'An avatar with 120,000 triangles']],
+      render(t, q) {
+        const r = 1 - P(t, 8, 8.6, eio);
+        const red = P(t, 1.4, 3.2, eio) * r, n = 120000 - 50000 * red;
+        q('cnt')[0].textContent = (Math.round(n / 100) * 100).toLocaleString('en-US');
+        q('fill')[0].setAttribute('width', (168 * n / 120000).toFixed(1));
+        op(q('fine')[0], 1 - red);
+        const face = bump(t, 3.9, .8);
+        q('face')[0].style.stroke = mix(face); q('ft')[0].style.fill = mix(face);
+        op(q('bd')[0], bump(t, 4.9, .8)); op(q('seam')[0], bump(t, 4.9, .8));
+        [1.4, 3.4, 4.4, 5.6].forEach((a, i) => {
+          q('fl')[i].style.fill = mix(P(t, a, a + .3) * r);
+          op(q('bar')[i], bump(t, a + .25, .6));
+        });
+      }
+    },
+    poi: {
+      dur: 8.6, still: 5.4,
+      steps: [[0, 'One component per Poiyomi feature'], [.4, 'At upload: a Shader menu folder'], [2, 'LTCGI switched on in game'], [2.8, 'Intensity radial turned up'], [4.4, 'Every material with LTCGI follows'], [7.6, 'One component per Poiyomi feature']],
+      render(t, q) {
+        const r = 1 - P(t, 7.6, 8.2);
+        op(q('mh')[0], P(t, .2, .5) * r);
+        q('r').forEach((e, i) => {
+          const k = P(t, .4 + i * .3, .75 + i * .3) * r;
+          op(e, k); e.setAttribute('transform', `translate(${(8 * (1 - k)).toFixed(2)} 0)`);
+        });
+        const on = P(t, 2, 2.3) * r;
+        q('ton').forEach((e, i) => op(e, i ? 0 : on));
+        q('kn').forEach((e, i) => { const k = i ? 0 : on; e.setAttribute('cx', (153 + 12 * k).toFixed(2)); e.style.fill = mix(k); });
+        const v = .8 * P(t, 2.8, 4, eio) * r, rad = q('rad')[0];
+        rad.style.strokeDashoffset = (1 - v).toFixed(3); op(rad, v > .005 ? 1 : 0);
+        q('pct')[0].textContent = `${Math.round(v * 100)}%`;
+        q('mat').forEach((m, i) => {
+          const k = P(t, 4.4 + i * .25, 4.8 + i * .25) * r;
+          m.style.stroke = mix(k); m.style.fill = mix(k * .3, 'var(--accent)', 'var(--surface)');
+        });
+      }
     }
   };
 

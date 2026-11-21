@@ -1,6 +1,6 @@
 # VRCFury Auto Tools
 
-Seven small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
+Nine small helpers for [VRCFury](https://vrcfury.com) that take care of boring avatar chores for you.
 Add a component, upload your avatar, and it's done.
 
 ## What's inside
