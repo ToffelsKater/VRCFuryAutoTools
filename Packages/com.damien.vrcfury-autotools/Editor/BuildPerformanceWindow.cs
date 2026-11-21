@@ -62,26 +62,30 @@ namespace VRCFuryAutoTools {
 
         /// <summary>
         /// Copies the avatar, runs the SDK's avatar build hooks on the copy (VRCFury, NDMF, this package, the SDK's own EditorOnly
-        /// removal), ranks it for each of <paramref name="mobile"/> and deletes the copy. Null when a hook stops the build.
+        /// removal), hands the built copy to <paramref name="read"/> and deletes the copy. Default when a hook stops the build.
         /// </summary>
-        private static AvatarPerformanceStats[] Measure(GameObject original, params bool[] mobile) {
+        internal static T OnBuiltCopy<T>(GameObject original, Func<GameObject, T> read) {
             var clone = Object.Instantiate(original);
             clone.SetActive(true);
             if (original.scene.IsValid() && clone.scene != original.scene) SceneManager.MoveGameObjectToScene(clone, original.scene);
             try {
-                if (!VRCBuildPipelineCallbacks.OnPreprocessAvatar(clone)) return null;
+                if (!VRCBuildPipelineCallbacks.OnPreprocessAvatar(clone)) return default;
                 // like the SDK's builder: unregistered constraints give a wrong constraint depth otherwise. Internal to the SDK.
                 RefreshConstraints?.Invoke(null, new object[] { clone.GetComponentsInChildren<VRCConstraintBase>(true) });
-                return mobile.Select(m => {
-                    var s = new AvatarPerformanceStats(m);
-                    AvatarPerformance.CalculatePerformanceStats(original.name, clone, s, m);
-                    return s;
-                }).ToArray();
+                return read(clone);
             } finally {
                 VRCBuildPipelineCallbacks.OnPostprocessAvatar();
                 Object.DestroyImmediate(clone);
             }
         }
+
+        /// <summary>The built copy ranked for each of <paramref name="mobile"/>. Null when a hook stops the build.</summary>
+        private static AvatarPerformanceStats[] Measure(GameObject original, params bool[] mobile) =>
+            OnBuiltCopy(original, clone => mobile.Select(m => {
+                var s = new AvatarPerformanceStats(m);
+                AvatarPerformance.CalculatePerformanceStats(original.name, clone, s, m);
+                return s;
+            }).ToArray());
 
         private void Run() {
             pc = quest = null;

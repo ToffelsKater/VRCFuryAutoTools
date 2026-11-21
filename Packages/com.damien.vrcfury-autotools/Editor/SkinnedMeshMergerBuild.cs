@@ -37,78 +37,131 @@ namespace VRCFuryAutoTools {
 
         /// <summary>Skinned meshes another component points at (the avatar descriptor's face mesh, ...): merging would cut that link.
         /// Editor-only components don't count, they are gone before upload.</summary>
-        private static HashSet<SkinnedMeshRenderer> Referenced(GameObject root) {
-            var referenced = new HashSet<SkinnedMeshRenderer>();
+        private static Dictionary<SkinnedMeshRenderer, string> Referenced(GameObject root) {
+            var referenced = new Dictionary<SkinnedMeshRenderer, string>();
             foreach (var k in root.GetComponentsInChildren<Component>(true)) {
                 if (k == null || k is Transform || k is Renderer || k is IEditorOnly) continue;
                 var it = new SerializedObject(k).GetIterator();
                 while (it.Next(true))
-                    if (it.propertyType == SerializedPropertyType.ObjectReference && it.objectReferenceValue is SkinnedMeshRenderer s) referenced.Add(s);
+                    if (it.propertyType == SerializedPropertyType.ObjectReference && it.objectReferenceValue is SkinnedMeshRenderer s && !referenced.ContainsKey(s))
+                        referenced[s] = $"{ObjectNames.NicifyVariableName(k.GetType().Name)} on '{k.name}' uses it";
             }
             return referenced;
         }
 
+        /// <summary>Why the mesh itself can't be merged, null if nothing about it stops that.</summary>
+        private static string Reason(SkinnedMeshRenderer r, Transform root) {
+            var m = r.sharedMesh;
+            if (m == null) return "it has no mesh";
+            if (!r.enabled) return "its renderer is switched off";
+            if (r.sharedMaterials.Length != m.subMeshCount) return $"it has {r.sharedMaterials.Length} materials for {m.subMeshCount} mesh parts";
+            if (r.GetComponent<Cloth>() != null) return "it has Cloth";
+            if (Enumerable.Range(0, m.subMeshCount).Any(i => m.GetTopology(i) != MeshTopology.Triangles)) return "it has line or point parts";
+            if (r.sharedMaterials.Any(mat => mat != null && mat.HasProperty("_SPS_Bake")))
+                return "it is a VRCFury SPS mesh, SPS finds its baked data by vertex number";
+            var own = r.GetComponentsInParent<Animator>(true).FirstOrDefault(a => a.transform != root);
+            return own != null ? $"the Animator on '{own.name}' animates it" : null;
+        }
+
         /// <summary>
-        /// The group key of a mesh that can be merged, null if it has to stay as it is. Meshes with the same key are shown and hidden
-        /// by the same animated objects and render with the same settings. <paramref name="shapesAnimated"/>: animations change its
-        /// blendshapes, which only works on the mesh the others are merged into (its path and blendshape names stay).
+        /// The group key of a mesh that can be merged. Null if it has to stay as it is, with the <paramref name="reason"/>. Meshes with
+        /// the same key are shown and hidden by the same animated objects (<paramref name="shownBy"/>) and render with the same settings.
+        /// <paramref name="shapesAnimated"/>: animations change its blendshapes, which only works on the mesh the others are merged into
+        /// (its path and blendshape names stay).
         /// </summary>
         private static string Key(SkinnedMeshRenderer r, Transform root, Dictionary<string, List<(Type type, string property)>> animated,
-            HashSet<SkinnedMeshRenderer> skip, out bool shapesAnimated) {
+            Dictionary<SkinnedMeshRenderer, string> skip, out bool shapesAnimated, out string reason, out List<Transform> shownBy) {
             shapesAnimated = false;
-            var m = r.sharedMesh;
-            if (skip.Contains(r) || m == null || !r.enabled || r.sharedMaterials.Length != m.subMeshCount
-                || r.GetComponent<Cloth>() != null
-                || Enumerable.Range(0, m.subMeshCount).Any(i => m.GetTopology(i) != MeshTopology.Triangles)
-                || r.sharedMaterials.Any(mat => mat != null && mat.HasProperty("_SPS_Bake")) // VRCFury SPS reads its baked data by vertex index
-                || r.GetComponentsInParent<Animator>(true).Any(a => a.transform != root)) // animated by its own animator
-                return null;
+            shownBy = new List<Transform>(); // the objects whose animated active state decides if it shows
+            reason = Reason(r, root);
+            if (reason != null) return null;
+            if (skip.TryGetValue(r, out reason)) return null;
 
             if (animated.TryGetValue(AnimationUtility.CalculateTransformPath(r.transform, root), out var own)) {
                 foreach (var (type, property) in own.Where(p => typeof(Renderer).IsAssignableFrom(p.type))) {
-                    if (!property.StartsWith("blendShape.", StringComparison.Ordinal)) return null; // materials, enabled, ...: they would hit every merged mesh
+                    if (!property.StartsWith("blendShape.", StringComparison.Ordinal)) {
+                        reason = $"an animation changes its {property}, which would change every merged mesh";
+                        return null;
+                    }
                     shapesAnimated = true;
                 }
             }
 
-            var shownBy = new List<int>(); // the objects whose animated active state decides if it shows
             for (var t = r.transform; t != root; t = t.parent) {
-                if (t.CompareTag("EditorOnly")) return null; // removed before upload
+                if (t.CompareTag("EditorOnly")) {
+                    reason = $"'{t.name}' is tagged EditorOnly, so it is removed before upload";
+                    return null;
+                }
                 var toggled = animated.TryGetValue(AnimationUtility.CalculateTransformPath(t, root), out var list)
                     && list.Any(p => p.type == typeof(GameObject) && p.property == "m_IsActive");
-                if (toggled) shownBy.Add(t.GetInstanceID());
-                else if (!t.gameObject.activeSelf) return null; // never shown
+                if (toggled) shownBy.Add(t);
+                else if (!t.gameObject.activeSelf) {
+                    reason = $"'{t.name}' is off and no animation turns it on, so it never shows";
+                    return null;
+                }
             }
 
+            var m = r.sharedMesh;
             var anchor = r.probeAnchor != null ? r.probeAnchor.GetInstanceID() : 0;
             var volume = r.lightProbeProxyVolumeOverride != null ? r.lightProbeProxyVolumeOverride.GetInstanceID() : 0;
-            return string.Join(",", shownBy) + $"|{r.shadowCastingMode}|{r.receiveShadows}|{r.lightProbeUsage}|{r.reflectionProbeUsage}|{anchor}|{volume}"
+            return string.Join(",", shownBy.Select(t => t.GetInstanceID())) + $"|{r.shadowCastingMode}|{r.receiveShadows}|{r.lightProbeUsage}|{r.reflectionProbeUsage}|{anchor}|{volume}"
                 + $"|{r.quality}|{r.updateWhenOffscreen}|{r.skinnedMotionVectors}|{r.allowOcclusionWhenDynamic}|{r.motionVectorGenerationMode}"
                 + $"|{r.gameObject.layer}|{r.sortingLayerID}|{r.sortingOrder}|{r.rendererPriority}|{r.renderingLayerMask}"
                 + $"|{m.HasVertexAttribute(VertexAttribute.Normal)}{m.HasVertexAttribute(VertexAttribute.Tangent)}{m.HasVertexAttribute(VertexAttribute.Color)}";
         }
 
-        /// <summary>The groups of meshes the build merges, the mesh they go into first.</summary>
-        public static List<List<SkinnedMeshRenderer>> Groups(SkinnedMeshMerger c) {
+        /// <summary>What a build did: the meshes merged into one (by name, the objects are gone after the build), and why the
+        /// others stayed separate.</summary>
+        public class Report {
+            public int before, after;
+            public readonly List<List<string>> merged = new List<List<string>>();
+            public readonly List<(string mesh, string reason)> separate = new List<(string, string)>();
+
+            public override string ToString() =>
+                $"Skinned meshes: {before} > {after}."
+                + string.Concat(merged.Select(g => "\nMerged into one: " + string.Join(", ", g)))
+                + string.Concat(separate.Select(s => $"\nStays separate: {s.mesh}: {s.reason}."));
+        }
+
+        /// <summary>The report of the last build with a merger, null before one ran. Read by the inspector's preview.</summary>
+        internal static Report LastReport;
+
+        /// <summary>The groups of meshes the build merges, the mesh they go into first. Every other mesh is in
+        /// <paramref name="separate"/> with the reason.</summary>
+        public static List<List<SkinnedMeshRenderer>> Groups(SkinnedMeshMerger c, List<(SkinnedMeshRenderer mesh, string reason)> separate) {
             var root = ZeroWeightBoneAnalysis.AvatarRoot(c).transform;
             var animated = Animated(root.gameObject);
             var skip = Referenced(root.gameObject);
-            skip.UnionWith(c.exclude.Where(r => r != null));
+            foreach (var r in c.exclude.Where(r => r != null)) skip[r] = "it is in the Exclude list";
             var groups = new Dictionary<string, List<SkinnedMeshRenderer>>();
             var hosts = new Dictionary<string, SkinnedMeshRenderer>();
+            var toggles = new Dictionary<SkinnedMeshRenderer, List<Transform>>();
             foreach (var r in root.GetComponentsInChildren<SkinnedMeshRenderer>(true)) {
-                var key = Key(r, root, animated, skip, out var shapesAnimated);
-                if (key == null) continue;
+                var key = Key(r, root, animated, skip, out var shapesAnimated, out var reason, out var shownBy);
+                if (key == null) {
+                    separate.Add((r, reason));
+                    continue;
+                }
                 if (shapesAnimated) {
-                    if (hosts.ContainsKey(key)) continue; // only one mesh per group can keep animated blendshapes
+                    if (hosts.TryGetValue(key, out var host)) { // only one mesh per group can keep animated blendshapes
+                        separate.Add((r, $"animations change its blendshapes, and '{host.name}' already keeps the animated blendshapes of its group"));
+                        continue;
+                    }
                     hosts[key] = r;
                 }
                 if (!groups.TryGetValue(key, out var list)) groups[key] = list = new List<SkinnedMeshRenderer>();
                 list.Add(r);
+                toggles[r] = shownBy;
             }
             foreach (var kv in hosts) { // the mesh with animated blendshapes is the one the others go into
                 groups[kv.Key].Remove(kv.Value);
                 groups[kv.Key].Insert(0, kv.Value);
+            }
+            foreach (var g in groups.Values.Where(g => g.Count == 1)) {
+                var shownBy = toggles[g[0]];
+                separate.Add((g[0], shownBy.Count == 0
+                    ? "no other always shown mesh has the same render settings and vertex data"
+                    : $"no other mesh is shown and hidden by {string.Join(", ", shownBy.Select(t => $"'{t.name}'"))} with the same render settings and vertex data"));
             }
             return groups.Values.Where(g => g.Count > 1).ToList();
         }
@@ -238,23 +291,24 @@ namespace VRCFuryAutoTools {
             foreach (var r in group.Skip(1)) Object.DestroyImmediate(r);
         }
 
-        public static void Apply(SkinnedMeshMerger c) {
+        public static Report Apply(SkinnedMeshMerger c) {
             var root = ZeroWeightBoneAnalysis.AvatarRoot(c);
-            var before = root.GetComponentsInChildren<SkinnedMeshRenderer>(true).Length;
-            var groups = Groups(c);
-            if (groups.Count == 0) return;
-            var lines = new List<string>();
+            var report = new Report { before = root.GetComponentsInChildren<SkinnedMeshRenderer>(true).Length };
+            var separate = new List<(SkinnedMeshRenderer mesh, string reason)>();
+            var groups = Groups(c, separate);
+            report.separate.AddRange(separate.Select(s => (s.mesh.name, s.reason)));
             foreach (var g in groups) {
-                var names = string.Join(", ", g.Select(r => r.name)); // before the merge destroys them
+                var names = g.Select(r => r.name).ToList(); // before the merge destroys them
                 try {
                     Merge(g, c.mergeSameMaterials);
-                    lines.Add(names);
+                    report.merged.Add(names);
                 } catch (Exception e) { // one odd group must not stop the upload: its meshes stay as they are
-                    Debug.LogWarning($"[VRCFuryAutoTools] Could not merge {names}, they stay as they are: {e.Message}", c);
+                    report.separate.AddRange(names.Select(n => (n, "merging its group failed: " + e.Message)));
                 }
             }
-            var after = root.GetComponentsInChildren<SkinnedMeshRenderer>(true).Length;
-            Debug.Log($"[VRCFuryAutoTools] '{c.name}' merged skinned meshes: {before} > {after}.\n" + string.Join("\n", lines.Select(l => "into one: " + l)), c);
+            report.after = root.GetComponentsInChildren<SkinnedMeshRenderer>(true).Length;
+            Debug.Log($"[VRCFuryAutoTools] '{c.name}': {report}", c);
+            return report;
         }
     }
 
@@ -269,7 +323,7 @@ namespace VRCFuryAutoTools {
             var c = avatar.GetComponentInChildren<SkinnedMeshMerger>(true);
             if (c == null) return true;
             AssetDatabase.DeleteAsset(SkinnedMeshMergerBuild.Folder); // the meshes of the build before
-            SkinnedMeshMergerBuild.Apply(c);
+            SkinnedMeshMergerBuild.LastReport = SkinnedMeshMergerBuild.Apply(c);
             return true;
         }
     }

@@ -422,13 +422,37 @@ namespace VRCFuryAutoTools {
 
     [CustomEditor(typeof(SkinnedMeshMerger))]
     internal class SkinnedMeshMergerEditor : Editor {
+        private SkinnedMeshMergerBuild.Report report;
+        private string error;
+
         public override void OnInspectorGUI() {
             Placement.Draw(target);
             DrawDefaultInspector();
             EditorGUILayout.HelpBox("At build, after VRCFury: skinned meshes that are always shown and hidden together become one mesh. "
-                + "Left as they are: meshes toggled on their own, the face mesh (the avatar descriptor uses it), meshes with animated "
-                + "materials, VRCFury SPS meshes and cloth. Of meshes with animated blendshapes, one per group is merged. "
-                + "Tools > VRCFury Auto Tools > Performance Rank After Build shows the result.", MessageType.Info);
+                + "VRCFury makes its toggles at build, so only a build shows what merges: the preview builds a copy of the avatar "
+                + "like an upload does, then deletes it.", MessageType.Info);
+            using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode)) {
+                if (GUILayout.Button("Preview merge")) Preview((SkinnedMeshMerger)target);
+            }
+            if (error != null) EditorGUILayout.HelpBox(error, MessageType.Error);
+            if (report == null) return;
+            EditorGUILayout.HelpBox($"Skinned meshes: {report.before} > {report.after}", MessageType.Info);
+            foreach (var g in report.merged) EditorGUILayout.HelpBox("Merged into one: " + string.Join(", ", g), MessageType.None);
+            foreach (var (mesh, reason) in report.separate) EditorGUILayout.HelpBox($"{mesh} stays separate: {reason}.", MessageType.None);
+        }
+
+        private void Preview(SkinnedMeshMerger c) {
+            report = null;
+            error = null;
+            SkinnedMeshMergerBuild.LastReport = null;
+            try {
+                if (!BuildPerformanceWindow.OnBuiltCopy(ZeroWeightBoneAnalysis.AvatarRoot(c), _ => true)) error = "A build hook stopped the build. The console says why.";
+                else report = SkinnedMeshMergerBuild.LastReport;
+                if (report == null && error == null) error = "The merger did not run in the build.";
+            } catch (Exception e) {
+                Debug.LogException(e);
+                error = "The build failed: " + e.Message;
+            }
         }
     }
 }
