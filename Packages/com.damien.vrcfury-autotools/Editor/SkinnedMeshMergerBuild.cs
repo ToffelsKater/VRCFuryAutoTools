@@ -44,7 +44,8 @@ namespace VRCFuryAutoTools {
                 var it = new SerializedObject(k).GetIterator();
                 while (it.Next(true))
                     if (it.propertyType == SerializedPropertyType.ObjectReference && it.objectReferenceValue is SkinnedMeshRenderer s && !referenced.ContainsKey(s))
-                        referenced[s] = $"{ObjectNames.NicifyVariableName(k.GetType().Name)} on '{k.name}' uses it";
+                        referenced[s] = $"{ObjectNames.NicifyVariableName(k.GetType().Name)} on "
+                            + (k.transform == root.transform ? "the avatar root" : $"'{k.name}'") + " uses it"; // the root is a copy named (Clone) in a build
             }
             return referenced;
         }

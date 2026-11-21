@@ -394,8 +394,9 @@ namespace VRCFuryAutoTools {
             else if (plan.quality <= 0)
                 EditorGUILayout.HelpBox($"The kept meshes alone have {plan.kept} triangles, more than the target. Nothing is reduced.", MessageType.Warning);
             else
-                EditorGUILayout.HelpBox($"{plan.Total} triangles now. At build {plan.reduced.Count} meshes keep about {plan.quality:P0} of their "
-                    + $"triangles, the {plan.kept} triangles of the kept meshes stay. The mesh files are not changed.", MessageType.Info);
+                EditorGUILayout.HelpBox($"{plan.Total:N0} triangles now. At build {(plan.reduced.Count == 1 ? "the mesh keeps" : $"{plan.reduced.Count} meshes keep")} "
+                    + $"about {Mathf.RoundToInt(plan.quality * 100)}% of {(plan.reduced.Count == 1 ? "its" : "their")} triangles"
+                    + (plan.kept > 0 ? $", the {plan.kept:N0} triangles of the kept meshes stay" : "") + ". The mesh files are not changed.", MessageType.Info);
         }
     }
 
