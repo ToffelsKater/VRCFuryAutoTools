@@ -25,6 +25,7 @@ section{padding:64px 0 80px}
 .tile h3{margin:0 0 10px;font:400 .95rem/1.4 "Michroma",sans-serif;letter-spacing:-.01em}
 .tile p{margin:0;color:var(--ink2);font-size:.98rem;text-wrap:pretty}
 .tile-feature{grid-column:span 4;display:grid;align-content:start;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);column-gap:28px;align-items:center;border:2px solid transparent;background:linear-gradient(180deg,rgba(255,255,255,.4),transparent 40%) padding-box,linear-gradient(var(--glass),var(--glass)) padding-box,linear-gradient(115deg,color-mix(in oklab,var(--cyan) 10%,var(--bg)),var(--bg) 50%,color-mix(in oklab,var(--pink) 10%,var(--bg))) padding-box,linear-gradient(115deg,var(--cyan),#c6a8ff,var(--pink),#ffe08a,var(--cyan)) border-box}
+.tile-full{grid-column:1/-1;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
 .tile-feature .titlebar{grid-column:1/-1;align-self:start;margin:0 -22px 4px;border-radius:16px 16px 0 0}
 .tile-text{display:flex;flex-direction:column;height:100%;padding-bottom:4px}
 .tile-feature h3{font-size:clamp(1.15rem,2vw,1.45rem);line-height:1.3}

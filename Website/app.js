@@ -276,6 +276,20 @@ document.getElementById('search').addEventListener('input', ({ target: { value }
           m.style.stroke = mix(k); m.style.fill = mix(k * .3, 'var(--accent)', 'var(--surface)');
         });
       }
+    },
+    rank: {
+      dur: 9, still: 6,
+      steps: [[0, 'The SDK ranks the avatar in the scene'], [1.4, 'A copy is built like an upload'], [3, 'PC: the rank the upload gets'], [4.6, 'Quest: ranked on Quest limits'], [6.4, 'The copy is deleted again'], [8, 'The SDK ranks the avatar in the scene']],
+      render(t, q) {
+        const r = 1 - P(t, 8, 8.6);
+        q('sc').forEach(e => { e.style.fill = mix(bump(t, .7, .8)); });
+        op(q('cp')[0], P(t, 1.4, 1.8) * (1 - P(t, 6.4, 7)));
+        const band = q('band')[0];
+        band.setAttribute('y', lerp(8, 156, P(t, 1.6, 2.9, eio)).toFixed(1)); op(band, bump(t, 2.25, .75));
+        q('pc').forEach((e, i) => op(e, P(t, 3 + i * .25, 3.35 + i * .25) * r));
+        q('qs').forEach((e, i) => op(e, P(t, 4.6 + i * .25, 4.95 + i * .25) * r));
+      }
+
     }
   };
 
