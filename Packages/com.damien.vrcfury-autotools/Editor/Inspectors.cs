@@ -46,6 +46,7 @@ namespace VRCFuryAutoTools {
                 .SelectMany(r => r.sharedMaterials).Where(m => m != null);
 
         public override void OnInspectorGUI() {
+            Placement.Draw(target);
             DrawDefaultInspector();
             var c = (AutoOutfitToggles)target;
             var plan = AutoOutfitTogglesPlan.Plan(c);
@@ -260,6 +261,7 @@ namespace VRCFuryAutoTools {
         private ZeroWeightBoneAnalysis.Result result;
 
         public override void OnInspectorGUI() {
+            Placement.Draw(target);
             DrawDefaultInspector();
             var c = (ZeroWeightBoneRemover)target;
             if (GUILayout.Button("Preview bones to remove")) result = ZeroWeightBoneAnalysis.Analyze(c);
@@ -288,6 +290,7 @@ namespace VRCFuryAutoTools {
         }
 
         public override void OnInspectorGUI() {
+            Placement.Draw(target);
             DrawDefaultInspector();
             if (GUILayout.Button("Regenerate colliders")) AutoPhysBoneCollidersGenerator.Generate((AutoPhysBoneColliders)target);
         }
@@ -314,6 +317,7 @@ namespace VRCFuryAutoTools {
         }
 
         public override void OnInspectorGUI() {
+            Placement.Draw(target);
             DrawDefaultInspector();
             EditorGUILayout.HelpBox("The copy takes the avatar's blueprint ID, so upload the PC version first and regenerate if it had none yet. "
                 + "Then switch the SDK to Android, select the copy and upload it. Edits to the original only reach the copy when you regenerate. "
@@ -326,6 +330,7 @@ namespace VRCFuryAutoTools {
     [CustomEditor(typeof(AutoDigitigradeLegs))]
     internal class AutoDigitigradeLegsEditor : Editor {
         public override void OnInspectorGUI() {
+            Placement.Draw(target);
             DrawDefaultInspector();
             var c = (AutoDigitigradeLegs)target;
             // ponytail: searches the armature again on every repaint while the leg fields are empty; cache it if the inspector gets slow
@@ -355,6 +360,7 @@ namespace VRCFuryAutoTools {
     [CustomEditor(typeof(PoiyomiFeature), true)]
     internal class PoiyomiFeatureEditor : Editor {
         public override void OnInspectorGUI() {
+            Placement.Draw(target);
             var c = (PoiyomiFeature)target;
             serializedObject.Update();
             if (c.ToggleProperty != null) DrawDefaultInspector();
@@ -378,6 +384,7 @@ namespace VRCFuryAutoTools {
     [CustomEditor(typeof(MeshDecimator))]
     internal class MeshDecimatorEditor : Editor {
         public override void OnInspectorGUI() {
+            Placement.Draw(target);
             DrawDefaultInspector();
             var c = (MeshDecimator)target;
             // ponytail: counts every mesh of the avatar on each repaint; cache it if the inspector gets slow
@@ -398,6 +405,7 @@ namespace VRCFuryAutoTools {
         private string broken;
 
         public override void OnInspectorGUI() {
+            Placement.Draw(target);
             DrawDefaultInspector();
             var c = (MeshBoneStripper)target;
             if (GUILayout.Button("Preview bones to remove")) {
@@ -409,6 +417,18 @@ namespace VRCFuryAutoTools {
             if (broken != "")
                 EditorGUILayout.HelpBox("These meshes are not in the list but are weighted to bones being removed. Add them or they will break:\n"
                     + broken, MessageType.Warning);
+        }
+    }
+
+    [CustomEditor(typeof(SkinnedMeshMerger))]
+    internal class SkinnedMeshMergerEditor : Editor {
+        public override void OnInspectorGUI() {
+            Placement.Draw(target);
+            DrawDefaultInspector();
+            EditorGUILayout.HelpBox("At build, after VRCFury: skinned meshes that are always shown and hidden together become one mesh. "
+                + "Left as they are: meshes toggled on their own, the face mesh (the avatar descriptor uses it), meshes with animated "
+                + "materials, VRCFury SPS meshes and cloth. Of meshes with animated blendshapes, one per group is merged. "
+                + "Tools > VRCFury Auto Tools > Performance Rank After Build shows the result.", MessageType.Info);
         }
     }
 }

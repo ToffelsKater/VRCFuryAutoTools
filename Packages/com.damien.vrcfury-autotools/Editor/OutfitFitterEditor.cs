@@ -36,6 +36,7 @@ namespace VRCFuryAutoTools {
         }
 
         public override void OnInspectorGUI() {
+            Placement.Draw(target);
             var before = PrepareKey();
             EditorGUI.BeginChangeCheck();
             DrawDefaultInspector();
