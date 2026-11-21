@@ -1,9 +1,9 @@
 {
   "name": "com.damien.vrcfury-autotools",
   "displayName": "VRCFury Auto Tools",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "unity": "2022.3",
-  "description": "Addon for VRCFury: automatic outfit toggle creator, zero-weight bone remover, mesh bone stripper, mesh decimator, PhysBone collider creator, Quest copy creator, outfit fitter, digitigrade leg setup and Poiyomi shader feature toggles. Uses only VRCFury's public API.",
+  "description": "Addon for VRCFury: automatic outfit toggle creator, zero-weight bone remover, mesh bone stripper, mesh decimator, PhysBone collider creator, Quest copy creator, outfit fitter, digitigrade leg setup, Poiyomi shader feature toggles and a performance rank after build window. Uses only VRCFury's public API.",
   "keywords": ["vrcfury", "outfit", "toggle", "bones", "performance"],
   "author": {
     "name": "ToffelsKater",
